@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+.venv/
+env/
+
+# Environment variables
+.env.example
+
+# VSCode
+.vscode/
+
+# Data & storage
+data/
+storage/
+
+# Logs
+*.log
