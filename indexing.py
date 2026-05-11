@@ -4,6 +4,10 @@ from config import settings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from collections import defaultdict
 from schemas import ChunkMetadata
+import uuid
+from store import get_vector_store, ensure_collection
+from utils import discover_pdfs
+from pathlib import Path
 
 def _document_id(path):
     raw = f"{path.name}:{path.stat().st_size}"
@@ -39,7 +43,7 @@ def _splitter (chunk_size=None, chunk_overlap=None):
     )
     
     
-def _build_chunks(pdf_paths, chunk_size=None, chunk_overlap=None, chunker=None):
+def build_chunks(pdf_paths, chunk_size=None, chunk_overlap=None, chunker=None):
     page_docs = []
     for path in pdf_paths:
         page_docs.extend(_load_pdf(path))
@@ -63,3 +67,27 @@ def _build_chunks(pdf_paths, chunk_size=None, chunk_overlap=None, chunker=None):
         )
         chunk.metadata = meta.model_dump()
     return chunks
+
+
+def index_chunks(chunks, collection_name=None):
+    if not chunks:
+        return 0 
+    ids = [str(uuid.uuid5(uuid.NAMESPACE_DNS, c.metadata["chunk_id"]))for c in chunks]
+    get_vector_store(collection_name=collection_name).add_documents(chunks, ids=ids)
+    return len(chunks)
+
+def ingest(recreate=False, collection_name = None, chunker = None, chunk_size=None, chunk_overlap=None):
+    pdfs = discover_pdfs()
+    ensure_collection(recreate=recreate, collection_name = collection_name)
+    chunks = build_chunks(pdfs, chunker=chunker, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    return index_chunks(chunks, collection_name=collection_name)
+
+def save_and_ingest_pdf(file=bytes, filename):
+    safe_name = Path(filename).name
+    dest = settings.data_dir / safe_name
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(file_bytes)
+    
+    ensure_collection(recreate=False)
+    chunks = build_chunks([dest])
+    return {"filename": safe_name, "chunk_indxed": index_chunks(chunks)}
