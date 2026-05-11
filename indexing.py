@@ -82,7 +82,7 @@ def ingest(recreate=False, collection_name = None, chunker = None, chunk_size=No
     chunks = build_chunks(pdfs, chunker=chunker, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     return index_chunks(chunks, collection_name=collection_name)
 
-def save_and_ingest_pdf(file=bytes, filename):
+def save_and_ingest_pdf(filename, file_bytes: bytes):
     safe_name = Path(filename).name
     dest = settings.data_dir / safe_name
     settings.data_dir.mkdir(parents=True, exist_ok=True)
