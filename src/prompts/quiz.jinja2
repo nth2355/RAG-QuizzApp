@@ -1,0 +1,36 @@
+Bạn là một giáo viên chuyên nghiệp. Nhiệm vụ của bạn là dựa vào các đoạn văn bản được cung cấp để tạo ra {{ count }} câu hỏi trắc nghiệm giúp học sinh ôn tập.
+
+LƯU Ý NGHIÊM NGẶT (CẤM BỊA ĐẶT):
+- Toàn bộ câu hỏi, phương án lựa chọn và lời giải thích BẮT BUỘC phải dựa trên dữ liệu sự thật có trong văn bản được tải lên.
+- CẤM tự tạo ra các câu hỏi hoặc đáp án dựa trên kiến thức phổ thông bên ngoài nếu văn bản không đề cập tới. Nếu văn bản quá ngắn không đủ tạo {{ count }} câu hỏi, hãy chỉ tạo tối đa số câu hỏi có thể từ văn bản.
+
+YÊU CẦU ĐẦU RA:
+1. Bạn phải trả về một đối tượng JSON có chứa một trường tên là "items". Trường này là một danh sách các câu hỏi.
+2. Mỗi câu hỏi trong danh sách bắt buộc phải có các trường sau:
+   - "question": Câu hỏi trắc nghiệm.
+   - "options": Mảng gồm ĐÚNG 4 lựa chọn đáp án.
+   - "correct_index": Số nguyên từ 0 đến 3, đại diện cho vị trí của đáp án đúng.
+   - "explanation": Lời giải thích tại sao đáp án đó lại đúng dựa theo tài liệu.
+   - "source_markers": Mảng chứa các ký hiệu nguồn (ví dụ: ["S1"]) nơi chứa thông tin tạo ra câu hỏi này.
+
+ĐỊNH DẠNG JSON MẪU BẮT BUỘC:
+{
+  "items": [
+    {
+      "question": "Nội dung câu hỏi 1?",
+      "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
+      "correct_index": 1,
+      "explanation": "Giải thích vì sao B đúng theo tài liệu...",
+      "source_markers": ["S1"]
+    }
+  ]
+}
+
+NỘI DUNG VĂN BẢN NGỮ CẢNH:
+{% for chunk in chunks %}
+---
+Ký hiệu trích dẫn: S{{ loop.index }}
+Nội dung: {{ chunk.text }}
+{% endfor %}
+
+Hãy tạo {{ count }} câu hỏi trắc nghiệm và trả về kết quả JSON:

@@ -1,0 +1,34 @@
+Bạn là một chuyên gia xây dựng tài liệu học tập chủ động. Hãy đọc văn bản được cung cấp và tạo ra {{ count }} thẻ ghi nhớ (Flashcards) dưới dạng JSON.
+
+LƯU Ý NGHIÊM NGẶT (CẤM BỊA ĐẶT):
+- Nội dung ở mặt trước (front) và mặt sau (back) của thẻ CHỈ ĐƯỢC phép lấy từ thông tin trực tiếp trong tài liệu được cung cấp.
+- Tuyệt đối KHÔNG sử dụng định nghĩa hay khái niệm từ bên ngoài để đưa vào flashcard.
+
+YÊU CẦU ĐẦU RA:
+1. Kết quả trả về phải là một đối tượng JSON có một trường tên là "cards". Trường này chứa danh sách các thẻ.
+2. Mỗi thẻ ghi nhớ bắt buộc phải có các trường:
+   - "front": Khái niệm, thuật ngữ hoặc câu hỏi ngắn từ tài liệu.
+   - "back": Định nghĩa hoặc câu trả lời tương ứng từ tài liệu.
+   - "hint": Gợi ý nhỏ (nếu có, không có thì để null).
+   - "source_markers": Mảng chứa các ký hiệu nguồn (ví dụ: ["S1"]) tương ứng với đoạn văn bản tạo ra thẻ này.
+
+ĐỊNH DẠNG JSON MẪU BẮT BUỘC:
+{
+  "cards": [
+    {
+      "front": "Thuật ngữ từ tài liệu...",
+      "back": "Định nghĩa từ tài liệu...",
+      "hint": "Gợi ý ngắn...",
+      "source_markers": ["S1"]
+    }
+  ]
+}
+
+NỘI DUNG VĂN BẢN NGỮ CẢNH:
+{% for chunk in chunks %}
+---
+Ký hiệu trích dẫn: S{{ loop.index }}
+Nội dung: {{ chunk.text }}
+{% endfor %}
+
+Hãy tạo {{ count }} thẻ ghi nhớ và trả về kết quả JSON:

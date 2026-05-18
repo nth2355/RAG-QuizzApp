@@ -28,8 +28,7 @@ def _resolve_target(document, query, filters, k, retrieval_k):
     
     return fetch_all_chunks(filters=None), "corpus", None
 
-
-def summarize(document=None, query=None, filters=None, k=None):
+def summarize_learning(document=None, query=None, filters=None, k=None):
     chunks, scope, target = _resolve_target(
         document, query, filters, k, settings.summarize_retrieval_k
     )
@@ -40,13 +39,15 @@ def summarize(document=None, query=None, filters=None, k=None):
         summary_text, key_points = _validate_summary_payload(payload)
     else:
         partials = []
-        for start in range (0, len(chunks), settings.summarize_batch_size):
+        for start in range(0, len(chunks), settings.summarize_batch_size):
             batch = chunks[start : start+settings.summarize_batch_size]
             payload = _parse_json(invoke_llm(render_prompt(SUMMARY_MAP_TEMPLATE, chunks=batch)))
             summary_text, key_points = _validate_summary_payload(payload)
             partials.append({"summary": summary_text, "key_points": key_points})
-        payload = _parse_json(invoke_llm(render_prompt(SUMMARY_REDUCE_TEMPLATE, partials=partials)))
+        prompt = render_prompt(SUMMARY_REDUCE_TEMPLATE, partials=partials)
+        payload = _parse_json(invoke_llm(prompt))
         summary_text, key_points = _validate_summary_payload(payload)
+        
     return Summary(
         scope=scope,
         target=target,
@@ -65,11 +66,11 @@ def _validate_summary_payload(payload):
     
     return summary_text, key_points
 
-
 def _parse_json(text):
     cleaned = text.strip()
     if cleaned.startswith("```"):
-        cleaned = cleaned.split("/n", 1)[-1].removesuffix("```").strip()
+        # Sửa lại ký tự xuống dòng từ hệ thống /n thành \n chuẩn Python
+        cleaned = cleaned.split("\n", 1)[-1].removesuffix("```").strip()
     obj = json.loads(cleaned)
     
     if not isinstance(obj, (dict, list)):
@@ -77,7 +78,7 @@ def _parse_json(text):
     return obj
 
 def _validate_items(payload, key, model_class, dedup_field, label, valid_markers):
-    raw_items = payload.get(key)
+    raw_items = payload.get(key) or []
     items, seen = [], set()
     
     for raw in raw_items:
@@ -99,15 +100,15 @@ def _validate_items(payload, key, model_class, dedup_field, label, valid_markers
     
     return items
 
-
 def generate_quiz(document=None, query=None, filters=None, count=None, k=None):
     chunks, scope, target = _resolve_target(
         document, query, filters, k, settings.generation_retrieval_k
     )
     
     n = count or settings.quiz_default_count
-    valid_markers = {f"S{1}" for 1 in range(1, len(chunks) + 1)}
-    prompt = render_prompt(QUIZ_TEMPLATE, chunks= chunks, count=n)
+    # Sửa lỗi cú pháp biến chạy vòng lặp từ số 1 thành chữ i
+    valid_markers = {f"S{i}" for i in range(1, len(chunks) + 1)}
+    prompt = render_prompt(QUIZ_TEMPLATE, chunks=chunks, count=n)
     payload = _parse_json(invoke_llm(prompt))
     
     items = _validate_items(payload, "items", QuizItem, "question", "quiz items", valid_markers)
@@ -121,7 +122,7 @@ def generate_quiz(document=None, query=None, filters=None, count=None, k=None):
     
 def generate_flashcards(document=None, query=None, filters=None, count=None, k=None):
     chunks, scope, target = _resolve_target(
-        document, query, filters, k, settings.geneation_retieval_k
+        document, query, filters, k, settings.generation_retrieval_k  # Sửa chính tả cài đặt
     )
     n = count or settings.flashcards_default_count
     valid_markers = {f"S{i}" for i in range(1, len(chunks) + 1)}
@@ -137,4 +138,3 @@ def generate_flashcards(document=None, query=None, filters=None, count=None, k=N
         chunks=chunks,
         citations=format_citations(chunks)
     )
-    

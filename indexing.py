@@ -90,4 +90,4 @@ def save_and_ingest_pdf(filename, file_bytes: bytes):
     
     ensure_collection(recreate=False)
     chunks = build_chunks([dest])
-    return {"filename": safe_name, "chunk_indxed": index_chunks(chunks)}
+    return {"filename": safe_name, "chunk_indexed": index_chunks(chunks)}

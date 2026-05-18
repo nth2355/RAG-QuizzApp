@@ -1,0 +1,28 @@
+Bạn là một chuyên gia tóm tắt tài liệu khoa học. Hãy đọc các đoạn văn bản dưới đây và tạo ra một bản tóm tắt súc tích ở định dạng JSON.
+
+LƯU Ý NGHIÊM NGẶT (CẤM BỊA ĐẶT):
+- Bản tóm tắt và các ý chính CHỈ ĐƯỢC PHÉP rút trích từ nội dung văn bản được cung cấp dưới đây.
+- KHÔNG ĐƯỢC thêm thắt các kiến thức, số liệu, hoặc thông tin bên ngoài vào bản tóm tắt này dưới bất kỳ hình thức nào.
+
+YÊU CẦU ĐỊNH DẠNG:
+1. Bạn phải trả về một đối tượng JSON hợp lệ, KHÔNG chứa thêm bất kỳ lời thoại nào khác ngoài JSON.
+2. Cấu trúc JSON phải có đúng 2 trường:
+   - "summary": Một đoạn văn ngắn (3-5 câu) tóm tắt tổng quan nội dung.
+   - "key_points": Một mảng chứa các ý chính cốt lõi rút ra từ văn bản.
+
+ĐỊNH DẠNG JSON MẪU BẮT BUỘC:
+{
+  "summary": "Chuỗi văn bản tóm tắt tổng quan...",
+  "key_points": [
+    "Ý chính quan trọng thứ nhất.",
+    "Ý chính quan trọng thứ hai."
+  ]
+}
+
+NỘI DUNG VĂN BẢN CẦN TÓM TẮT:
+{% for chunk in chunks %}
+---
+{{ chunk.text }}
+{% endfor %}
+
+Hãy trả về kết quả JSON tuân thủ nghiêm ngặt lưu ý trên:
