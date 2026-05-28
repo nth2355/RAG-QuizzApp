@@ -4,12 +4,11 @@ from langchain_openai import ChatOpenAI
 from functools import lru_cache
 from langchain_core.messages import HumanMessage
 
-
 def _build_hf_local():
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-    from langchain_huggingface import ChatHunggingFace, HunggingFacePipeline
-    
+    # SỬA TYPO: ChatHunggingFace -> ChatHuggingFace
+    from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline 
     
     tokenizer = AutoTokenizer.from_pretrained(settings.hf_model)
     model = AutoModelForCausalLM.from_pretrained(settings.hf_model, dtype=torch.bfloat16)
@@ -21,29 +20,32 @@ def _build_hf_local():
         device=settings.hf_device,
         return_full_text=False,
     )
-    text_gen.generation_config.max_new_tokens = settings.hf_max_tokens
+    # SỬA: hf_max_tokens -> hf_max_new_tokens
+    text_gen.generation_config.max_new_tokens = settings.hf_max_new_tokens 
     text_gen.generation_config.do_sample = settings.llm_temperature > 0
     
-    return ChatHunggingFace(llm=HunggingFacePipeline(pipeline=text_gen))
+    return ChatHuggingFace(llm=HuggingFacePipeline(pipeline=text_gen))
 
 def _build_gemini():
-
     return ChatGoogleGenerativeAI(
         model=settings.gemini_model,
-        temperature=settings.temperature,
+        # SỬA: temperature -> llm_temperature
+        temperature=settings.llm_temperature, 
         google_api_key=settings.google_api_key,
     )
+
 def _build_vllm():
     return ChatOpenAI(
         model=settings.hf_model,
         openai_api_key=settings.vllm_api_key,
         openai_api_base=settings.vllm_api_base,
-        temperature=settings.llm.temperature,
+        # SỬA: settings.llm.temperature -> settings.llm_temperature
+        temperature=settings.llm_temperature, 
     )
     
 @lru_cache(maxsize=4)
 def get_llm(provider=None):
-    provider=provider or settings.llm_provider
+    provider = provider or settings.llm_provider
         
     if provider == "hf_local":
         return _build_hf_local()

@@ -38,7 +38,7 @@ def _splitter (chunk_size=None, chunk_overlap=None):
     return RecursiveCharacterTextSplitter(
         chunk_size=chunk_size or settings.chunk_size,
         chunk_overlap=chunk_overlap or settings.chunk_overlap,
-        separator=["\n\n", "\n", ". ", ""],
+        separators=["\n\n", "\n", ". ", ""],
         keep_separator=False,
     )
     

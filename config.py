@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     # Đường dẫn tới model LLM local (HuggingFace)
     # → quyết định “bộ não” dùng để sinh câu trả lời
 
-    hf_device: int = 1  
+    hf_device: int = -1
     # Thiết bị chạy model
     # -1 = CPU, 0 = GPU0, 1 = GPU1
     # → chọn đúng GPU để tăng tốc inference
