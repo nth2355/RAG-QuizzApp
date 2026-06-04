@@ -23,9 +23,15 @@ st.markdown("""
 
 def _api(method: str, path: str, **kwargs):
     try:
-        response = httpx.request(method, f"{API_URL}{path}", timeout=180, **kwargs)
-        response.raise_for_status()
-        return response.json()
+        # TĂNG TIMEOUT LÊN 900 GIÂY (15 PHÚT) để CPU thoải mái xử lý Embedding nặng
+        limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
+        with httpx.Client(limits=limits, timeout=900.0) as client:
+            response = client.request(method, f"{API_URL}{path}", **kwargs)
+            response.raise_for_status()
+            return response.json()
+    except httpx.TimeoutException:
+        st.error("❌ Hệ thống đang xử lý tài liệu lớn, thời gian tính toán của CPU vượt quá dự kiến. Vui lòng kiểm tra lại log Backend!")
+        return None
     except Exception as e:
         st.error(f"Mất kết nối tới Backend: {e}")
         return None
@@ -34,52 +40,41 @@ def _api(method: str, path: str, **kwargs):
 st.sidebar.title("RAG Hub Center")
 st.sidebar.markdown("---")
 
-# 1. Khu vực Upload tài liệu
-import time  # Thêm import thư viện time ở đầu file app_ui.py nếu chưa có
-
 st.sidebar.subheader("📤 Tải tài liệu lên")
 uploaded_file = st.sidebar.file_uploader("Chọn file PDF học tập", type=["pdf"], label_visibility="collapsed")
 
 if uploaded_file:
     if st.sidebar.button("🚀 Tiến hành Ingest", use_container_width=True):
-        # 1. Khởi tạo thanh tiến trình và thông báo trạng thái
         progress_bar = st.sidebar.progress(0)
         status_text = st.sidebar.empty()
         
-        # 2. Bước đọc file tại giao diện (Chạy nhanh)
         status_text.caption("⏳ 1. Đang đọc dữ liệu file...")
         progress_bar.progress(15)
         time.sleep(0.3)
         
-        # 3. Chuẩn bị payload gửi lên Backend FastAPI
         files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")}
         
         status_text.caption("⚡ 2. Đang phân mảnh và trích xuất ngữ cảnh...")
         progress_bar.progress(40)
         
-        # 4. Gửi API sang Backend và xử lý phần nặng nhất (Embedding & Vector DB)
-        # Tiến trình tạm dừng ở 85% để đợi phản hồi thực tế từ mô hình GreenNode và Qdrant
         progress_bar.progress(65)
         status_text.caption("🤖 3. GreenNode AI đang tính toán Embedding & Nạp Qdrant...")
         
         res = _api("POST", "/upload", files=files)
         
         if res:
-            # 5. Khi Backend phản hồi thành công, đẩy tiến trình lên 100%
             progress_bar.progress(100)
-            status_text.empty()  # Xóa dòng chữ caption trạng thái
+            status_text.empty()
             st.sidebar.success(f"Đã nạp xong {res['chunk_indexed']} chunks!")
-            time.sleep(1)  # Giữ giao diện thành công 1 giây trước khi rerun để người dùng kịp nhìn
+            time.sleep(1.5)
             st.rerun()
         else:
-            # Nếu thất bại thì xóa thanh tiến trình và thông báo lỗi
             progress_bar.empty()
             status_text.empty()
             st.sidebar.error("❌ Ingest thất bại. Vui lòng kiểm tra lại Backend FastAPI!")
 
 st.sidebar.markdown("---")
 
-# 2. Lấy dữ liệu tài liệu từ DB để làm bộ lọc toàn cục
 docs = _api("GET", "/documents") or []
 filenames = [d["filename"] for d in docs]
 
@@ -89,15 +84,27 @@ selected_file = st.sidebar.selectbox(
     ["Tất cả tài liệu"] + filenames,
     label_visibility="collapsed"
 )
+# Nút xóa tài liệu được chọn
+if selected_file != "Tất cả tài liệu":
+    st.sidebar.markdown("<br>", unsafe_allow_html=True)
+    if st.sidebar.button(f"🗑️ Xóa tài liệu hiện tại", use_container_width=True, type="secondary"):
+        with st.sidebar.spinner("Đang xóa tài liệu khỏi hệ thống..."):
+            res = _api("DELETE", f"/documents/{selected_file}")
+            if res:
+                # RESET LẠI CÁC TRẠNG THÁI GIAO DIỆN ĐỂ KHÔNG BỊ DÍNH CACHE FILE CŨ
+                if "active_quiz" in st.session_state:
+                    del st.session_state.active_quiz
+                if "active_cards" in st.session_state:
+                    del st.session_state.active_cards
+                
+                st.sidebar.success(f"Đã xóa xong {selected_file}!")
+                time.sleep(1)
+                st.rerun()
 
-# Thống kê nhanh ở góc sidebar
 st.sidebar.markdown("<br><br>", unsafe_allow_html=True)
 st.sidebar.metric(label="Tổng số tài liệu trong kho", value=len(filenames))
 
-
-
 # KHÔNG GIAN MAIN DASHBOARD
-# Thanh tiêu đề chính
 col_header_1, col_header_2 = st.columns([7, 3])
 with col_header_1:
     st.title("Không Gian Học Tập Thông Minh")
@@ -106,21 +113,17 @@ with col_header_2:
 
 st.markdown("---")
 
-# Chia Dashboard thành 2 cột lớn: Trái (Hỏi đáp) - Phải (Công cụ bổ trợ)
 col_chat, col_tools = st.columns([6, 4], gap="large")
 
-# KHÔNG GIAN TƯƠNG TÁC CHAT / Q&A
 with col_chat:
     st.subheader("💬 Trợ lý học tập AI")
-    
-    # Khởi tạo session state lưu lịch sử chat nếu chưa có
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
-    # Khung hiển thị nội dung chat có chiều cao cố định và thanh cuộn riêng biệt
     chat_container = st.container(height=450)
     with chat_container:
         if not st.session_state.chat_history:
+            st.sidebar.empty()
             st.info("Hãy nhập câu hỏi bên dưới. Tôi sẽ tìm kiếm các đoạn ngữ cảnh phù hợp nhất từ tài liệu để trả lời bạn một cách trung thực.")
         for message in st.session_state.chat_history:
             with st.chat_message(message["role"]):
@@ -130,16 +133,12 @@ with col_chat:
                         for c in message["citations"]:
                             st.caption(f"• **[{c['source_marker']}]** {c['filename']} - Trang {c['page']}")
 
-    # Form nhập câu hỏi ở đáy cột chat
     with st.form(key="chat_form", clear_on_submit=True):
         user_query = st.text_input("Đặt câu hỏi về nội dung tài liệu:", placeholder="Mô hình này giải quyết bài toán gì?...", label_visibility="collapsed")
-        submit_button = st.form_submit_with_rows_choices = st.form_submit_button(label="Gửi câu hỏi", use_container_width=True, type="primary")
+        submit_button = st.form_submit_button(label="Gửi câu hỏi", use_container_width=True, type="primary")
         
         if submit_button and user_query.strip():
-            # Thêm câu hỏi của user vào giao diện trước
             st.session_state.chat_history.append({"role": "user", "content": user_query})
-            
-            # Gọi API RAG Backend
             req_body = {"question": user_query}
             if selected_file != "Tất cả tài liệu":
                 req_body["filters"] = {"filename": selected_file}
@@ -154,10 +153,6 @@ with col_chat:
                     })
             st.rerun()
 
-
-# ==========================================
-# CỘT PHẢI: TIỆN ÍCH TỰ KIỂM TRA KIẾN THỨC
-# ==========================================
 with col_tools:
     st.subheader("🛠️ Bộ công cụ học chủ động")
     
@@ -171,7 +166,7 @@ with col_tools:
             if sum_query.strip():
                 req["query"] = sum_query.strip()
                 
-            with st.spinner("Đang xử lý cấu trúc văn bản..."):
+            with st.spinner("Hệ thống đang bóc tách ngữ cảnh và gửi sang Gemini xử lý (Có thể mất 1-2 phút do máy chạy CPU)..."):
                 res = _api("POST", "/summarize", json=req)
                 if res:
                     st.markdown("#### ✨ Tổng quan tài liệu")
@@ -194,12 +189,10 @@ with col_tools:
                     st.session_state.active_quiz = res["items"]
                     st.success(f"Đã biên soạn xong {len(res['items'])} câu hỏi dựa theo tài liệu!")
         
-        # Hiển thị Quiz nếu đã được khởi tạo trong Session
         if "active_quiz" in st.session_state:
             st.markdown("---")
             for idx, item in enumerate(st.session_state.active_quiz, 1):
                 st.markdown(f"**Câu {idx}: {item['question']}**")
-                # Tạo radio button để người dùng chọn đáp án trực tiếp
                 options_letters = ['A', 'B', 'C', 'D']
                 formatted_options = [f"{options_letters[i]}. {opt}" for i, opt in enumerate(item['options'])]
                 st.radio(f"Chọn đáp án cho câu {idx}:", formatted_options, key=f"q_choice_{idx}", label_visibility="collapsed")
@@ -225,7 +218,6 @@ with col_tools:
                     st.session_state.active_cards = res["cards"]
                     st.success(f"Đã tạo {len(res['cards'])} thẻ flashcards thành công!")
                     
-        # Hiển thị Flashcards dưới dạng lật giả lập
         if "active_cards" in st.session_state:
             st.markdown("---")
             for idx, card in enumerate(st.session_state.active_cards, 1):
@@ -234,7 +226,6 @@ with col_tools:
                 if card.get("hint"):
                     st.caption(f"💡 *Gợi ý nhỏ:* {card['hint']}")
                     
-                # Sử dụng expander đóng vai trò hành động lật thẻ (Flip)
                 with st.expander("🔄 Nhấn vào đây để LẬT THẺ xem định nghĩa"):
                     st.success(f"**Mặt sau (Định nghĩa sự thật):**\n\n{card['back']}")
                 st.markdown("<br>", unsafe_allow_html=True)

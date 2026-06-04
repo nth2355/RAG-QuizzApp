@@ -8,6 +8,8 @@ import uuid
 from store import get_vector_store, ensure_collection
 from utils import discover_pdfs
 from pathlib import Path
+from qdrant_client import models
+import time
 
 def _document_id(path):
     raw = f"{path.name}:{path.stat().st_size}"
@@ -82,12 +84,85 @@ def ingest(recreate=False, collection_name = None, chunker = None, chunk_size=No
     chunks = build_chunks(pdfs, chunker=chunker, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     return index_chunks(chunks, collection_name=collection_name)
 
-def save_and_ingest_pdf(filename, file_bytes: bytes):
+# def save_and_ingest_pdf(filename, file_bytes: bytes):
+#     safe_name = Path(filename).name
+#     dest = settings.data_dir / safe_name
+#     settings.data_dir.mkdir(parents=True, exist_ok=True)
+    
+#     # Ghi file nhị phân an toàn
+#     with open(dest, "wb") as f:
+#         f.write(file_bytes)
+    
+#     ensure_collection(recreate=False)
+    
+#     # Ép xử lý phân mảnh tài liệu riêng biệt
+#     chunks = build_chunks([dest])
+#     indexed_count = index_chunks(chunks)
+    
+#     return {"filename": safe_name, "chunk_indexed": indexed_count}
+import time
+
+def save_and_ingest_pdf(filename, file_bytes):
+    t0 = time.time()
+
     safe_name = Path(filename).name
     dest = settings.data_dir / safe_name
-    settings.data_dir.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(file_bytes)
-    
-    ensure_collection(recreate=False)
+
+    with open(dest, "wb") as f:
+        f.write(file_bytes)
+
+    print("SAVE:", time.time() - t0)
+
+    t1 = time.time()
+
     chunks = build_chunks([dest])
-    return {"filename": safe_name, "chunk_indexed": index_chunks(chunks)}
+    print("TOTAL CHUNKS:", len(chunks))
+
+    print("CHUNK:", time.time() - t1)
+
+    t2 = time.time()
+
+    indexed_count = index_chunks(chunks)
+
+    print("INDEX:", time.time() - t2)
+
+    print("TOTAL:", time.time() - t0)
+
+    return {
+        "filename": safe_name,
+        "chunk_indexed": indexed_count
+    }
+
+def delete_document(filename, collection_name=None):
+    # 1. Xóa file vật lý trong thư mục data trước
+    safe_name = Path(filename).name
+    file_path = settings.data_dir / safe_name
+    if file_path.exists():
+        file_path.unlink()
+        
+    # 2. Xóa dữ liệu Vector liên quan đến file này trong Qdrant
+    # Thay vì tự tạo client, ta bốc store chuẩn từ store.py
+    store = get_vector_store(collection_name=collection_name)
+    
+    client = store.client
+
+    client.delete(
+    collection_name=store.collection_name,
+    points_selector=models.FilterSelector(
+        filter=models.Filter(
+            must=[
+                models.FieldCondition(
+                    key="metadata.filename",
+                    match=models.MatchValue(
+                        value=safe_name
+                    )
+                )
+            ]
+        )
+    )
+)
+    del store
+    import gc
+    gc.collect()
+            
+    return {"status": "success", "message": f"Đã xóa hoàn toàn tài liệu {safe_name}"}

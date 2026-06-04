@@ -1,8 +1,9 @@
 from pydantic import BaseModel, Field
-from fastapi import FastAPI, UploadFile, File 
+from fastapi import FastAPI, UploadFile, File, HTTPException 
 from filters import MetadataFilter, filters_to_dict
 from indexing import save_and_ingest_pdf
 from rag import answer 
+from indexing import delete_document
 
 
 from learning import summarize_learning, generate_quiz, generate_flashcards 
@@ -93,3 +94,11 @@ def flashcards_endpoint(req: FlashcardsRequest):
         count=req.count,
         k=req.k
     )
+    
+@app.delete("/documents/{filename}")
+def delete_document_endpoint(filename: str):
+    try:
+        res = delete_document(filename)
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

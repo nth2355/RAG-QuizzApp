@@ -7,7 +7,6 @@ from langchain_core.messages import HumanMessage
 def _build_hf_local():
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-    # SỬA TYPO: ChatHunggingFace -> ChatHuggingFace
     from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline 
     
     tokenizer = AutoTokenizer.from_pretrained(settings.hf_model)
@@ -20,7 +19,6 @@ def _build_hf_local():
         device=settings.hf_device,
         return_full_text=False,
     )
-    # SỬA: hf_max_tokens -> hf_max_new_tokens
     text_gen.generation_config.max_new_tokens = settings.hf_max_new_tokens 
     text_gen.generation_config.do_sample = settings.llm_temperature > 0
     
@@ -29,8 +27,7 @@ def _build_hf_local():
 def _build_gemini():
     return ChatGoogleGenerativeAI(
         model=settings.gemini_model,
-        # SỬA: temperature -> llm_temperature
-        temperature=settings.llm_temperature, 
+        temperature=settings.llm_temperature,
         google_api_key=settings.google_api_key,
     )
 
@@ -39,23 +36,20 @@ def _build_vllm():
         model=settings.hf_model,
         openai_api_key=settings.vllm_api_key,
         openai_api_base=settings.vllm_api_base,
-        # SỬA: settings.llm.temperature -> settings.llm_temperature
         temperature=settings.llm_temperature, 
     )
     
-@lru_cache(maxsize=4)
+@lru_cache(maxsize=1)
 def get_llm(provider=None):
-    provider = provider or settings.llm_provider
-        
-    if provider == "hf_local":
-        return _build_hf_local()
-    if provider == "gemini":
-        return _build_gemini()
-    if provider == "vllm":
-        return _build_vllm()
-    
-    raise ValueError(f"Unknown llm_provider '{provider}'")
+    return _build_gemini()
 
 def invoke_llm(prompt, provider=None):
-    response = get_llm(provider=provider).invoke([HumanMessage(content=prompt)])
-    return response.content if isinstance(response.content, str) else str(response.content)
+    response = get_llm().invoke(
+        [HumanMessage(content=prompt)]
+    )
+
+    return (
+        response.content
+        if isinstance(response.content, str)
+        else str(response.content)
+    )

@@ -3,20 +3,31 @@ from qdrant_client import models as qmodels
 from langchain_qdrant import QdrantVectorStore
 from langchain_huggingface import HuggingFaceEmbeddings
 from config import settings
-
-# 1. Khởi tạo Embedding Model đồng bộ với cấu hình trong config.py
-# Sử dụng HuggingFaceEmbeddings để tải model GreenNode
+from functools import lru_cache
+import torch
+# 1. Khởi tạo Embedding Model
+@lru_cache(maxsize=1)
 def get_embedding_model():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    print(f"Embedding device = {device}")
+
     return HuggingFaceEmbeddings(
         model_name=settings.embedding_mdel,
-        model_kwargs={'device': 'cuda' if settings.hf_device >= 0 else 'cpu'}
+        model_kwargs={"device": device}
     )
 
 # 2. Khởi tạo Qdrant Client cục bộ theo storage_dir
+@lru_cache(maxsize=1)
 def get_qdrant_client():
-    # Tạo thư mục lưu trữ nếu chưa có
-    settings.storage_dir.mkdir(parents=True, exist_ok=True)
-    return QdrantClient(path=str(settings.storage_dir))
+    settings.storage_dir.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    return QdrantClient(
+        path=str(settings.storage_dir)
+    )
 
 # 3. Hàm đảm bảo Collection tồn tại (Được gọi trong indexing.py)
 def ensure_collection(recreate=False, collection_name=None):
@@ -36,7 +47,8 @@ def ensure_collection(recreate=False, collection_name=None):
             )
         )
 
-# 4. Hàm lấy Vector Store để thêm/tìm kiếm tài liệu (Được gọi trong indexing.py và rag.py)
+# 4. Hàm lấy Vector Store để thêm/tìm kiếm tài liệu 
+@lru_cache(maxsize=4)
 def get_vector_store(collection_name=None):
     name = collection_name or settings.qdrant_collection
     return QdrantVectorStore(

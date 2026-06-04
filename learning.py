@@ -1,8 +1,10 @@
-from rag import retrieve, fetch_all_chunks, render_prompt, invoke_llm, format_citations
+from rag import retrieve, fetch_all_chunks, render_prompt, format_citations
+from llm import invoke_llm 
 from config import settings
 from schemas import Summary, QuizItem, QuizSet, Flashcard, FlashcardSet
 import json
 from pydantic import ValidationError
+import time
 
 SUMMARIZE_SINGLE_TEMPLATE = "summary.jinja2"
 SUMMARY_MAP_TEMPLATE = "summary.jinja2"
@@ -28,6 +30,8 @@ def _resolve_target(document, query, filters, k, retrieval_k):
     
     return fetch_all_chunks(filters=None), "corpus", None
 
+import time  # Hãy đảm bảo dòng này đã được import ở đầu file learning.py
+
 def summarize_learning(document=None, query=None, filters=None, k=None):
     chunks, scope, target = _resolve_target(
         document, query, filters, k, settings.summarize_retrieval_k
@@ -44,6 +48,8 @@ def summarize_learning(document=None, query=None, filters=None, k=None):
             payload = _parse_json(invoke_llm(render_prompt(SUMMARY_MAP_TEMPLATE, chunks=batch)))
             summary_text, key_points = _validate_summary_payload(payload)
             partials.append({"summary": summary_text, "key_points": key_points})
+            time.sleep(0.5) 
+            
         prompt = render_prompt(SUMMARY_REDUCE_TEMPLATE, partials=partials)
         payload = _parse_json(invoke_llm(prompt))
         summary_text, key_points = _validate_summary_payload(payload)
@@ -69,7 +75,6 @@ def _validate_summary_payload(payload):
 def _parse_json(text):
     cleaned = text.strip()
     if cleaned.startswith("```"):
-        # Sửa lại ký tự xuống dòng từ hệ thống /n thành \n chuẩn Python
         cleaned = cleaned.split("\n", 1)[-1].removesuffix("```").strip()
     obj = json.loads(cleaned)
     
@@ -122,9 +127,10 @@ def generate_quiz(document=None, query=None, filters=None, count=None, k=None):
     
 def generate_flashcards(document=None, query=None, filters=None, count=None, k=None):
     chunks, scope, target = _resolve_target(
-        document, query, filters, k, settings.generation_retrieval_k  # Sửa chính tả cài đặt
+        document, query, filters, k, settings.generation_retrieval_k
     )
-    n = count or settings.flashcards_default_count
+    # SỬA: flashcards_default_count -> flash_card_default_count
+    n = count or settings.flash_card_default_count 
     valid_markers = {f"S{i}" for i in range(1, len(chunks) + 1)}
     prompt = render_prompt(FLASHCARDS_TEMPLATE, chunks=chunks, count=n)
     payload = _parse_json(invoke_llm(prompt))

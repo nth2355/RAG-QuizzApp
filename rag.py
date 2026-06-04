@@ -7,7 +7,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from pathlib import Path
 from llm import invoke_llm
 
-PROMPTS_DIR = Path(__file__).parent / "prompts"
+PROMPTS_DIR = Path(__file__).parent / "src" / "prompts" 
 ANSWER_TEMPLATE = "answer.jinja2"
 
 def retrieve(query, k=None, filters=None, collection_name=None):
