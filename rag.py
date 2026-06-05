@@ -11,15 +11,26 @@ PROMPTS_DIR = Path(__file__).parent / "src" / "prompts"
 ANSWER_TEMPLATE = "answer.jinja2"
 
 def retrieve(query, k=None, filters=None, collection_name=None):
-    # Sử dụng đúng hàm filter_to_qdrant để sinh cấu trúc filter cho Qdrant
     qdrant_filter = filter_to_qdrant(filters)
+
     hits = get_vector_store(collection_name).similarity_search_with_score(
         query=query,
         k=k or settings.top_k,
         filter=qdrant_filter,
     )
+
+    print("\n===== RETRIEVAL =====")
+    for i, (doc, score) in enumerate(hits):
+        print(f"{i+1}. score={score:.4f}")
+        print(doc.page_content[:150])
+        print("------------------")
+
     return [
-        RetrievedChunk(text=doc.page_content, score=float(score), metadata=ChunkMetadata(**doc.metadata))
+        RetrievedChunk(
+            text=doc.page_content,
+            score=float(score),
+            metadata=ChunkMetadata(**doc.metadata)
+        )
         for doc, score in hits
     ]
 

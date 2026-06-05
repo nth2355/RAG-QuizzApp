@@ -8,7 +8,7 @@ import time
 
 SUMMARIZE_SINGLE_TEMPLATE = "summary.jinja2"
 SUMMARY_MAP_TEMPLATE = "summary.jinja2"
-SUMMARY_REDUCE_TEMPLATE = "summary.jinja2"
+SUMMARY_REDUCE_TEMPLATE = "summary_reduce.jinja2"
 QUIZ_TEMPLATE = "quiz.jinja2"
 FLASHCARDS_TEMPLATE = "flashcard.jinja2"
 
@@ -56,7 +56,7 @@ def summarize_learning(document=None, query=None, filters=None, k=None):
         
     return Summary(
         scope=scope,
-        target=target,
+        target=target,  
         summary=summary_text,
         key_points=key_points,
         citations=format_citations(chunks),

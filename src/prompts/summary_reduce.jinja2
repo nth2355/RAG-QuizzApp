@@ -1,0 +1,22 @@
+Bạn là chuyên gia tổng hợp kiến thức.
+
+Dưới đây là các bản tóm tắt trung gian:
+
+{% for partial in partials %}
+---
+TÓM TẮT:
+{{ partial.summary }}
+
+Ý CHÍNH:
+{% for point in partial.key_points %}
+- {{ point }}
+{% endfor %}
+
+{% endfor %}
+
+Hãy hợp nhất chúng thành một JSON duy nhất.
+
+{
+  "summary": "...",
+  "key_points": [...]
+}

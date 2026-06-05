@@ -25,6 +25,7 @@ def _build_hf_local():
     return ChatHuggingFace(llm=HuggingFacePipeline(pipeline=text_gen))
 
 def _build_gemini():
+    print("GOOGLE API =", settings.google_api_key)
     return ChatGoogleGenerativeAI(
         model=settings.gemini_model,
         temperature=settings.llm_temperature,
@@ -39,9 +40,23 @@ def _build_vllm():
         temperature=settings.llm_temperature, 
     )
     
-@lru_cache(maxsize=1)
+@lru_cache(maxsize=3)
 def get_llm(provider=None):
-    return _build_gemini()
+
+    provider = provider or settings.llm_provider
+
+    if provider == "gemini":
+        return _build_gemini()
+
+    if provider == "hf_local":
+        return _build_hf_local()
+
+    if provider == "vllm":
+        return _build_vllm()
+
+    raise ValueError(
+        f"Unsupported provider: {provider}"
+    )
 
 def invoke_llm(prompt, provider=None):
     response = get_llm().invoke(

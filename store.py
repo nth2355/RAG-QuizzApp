@@ -8,12 +8,13 @@ import torch
 # 1. Khởi tạo Embedding Model
 @lru_cache(maxsize=1)
 def get_embedding_model():
+    print("LOADING EMBEDDING MODEL")
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     print(f"Embedding device = {device}")
 
     return HuggingFaceEmbeddings(
-        model_name=settings.embedding_mdel,
+        model_name=settings.embedding_model,
         model_kwargs={"device": device}
     )
 
