@@ -1,5 +1,5 @@
 from pathlib import Path
-from config import settings
+from .config import settings
 
 def discover_pdfs():
     data_dir = settings.data_dir

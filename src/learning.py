@@ -1,16 +1,24 @@
-from rag import retrieve, fetch_all_chunks, render_prompt, format_citations
-from llm import invoke_llm 
-from config import settings
-from schemas import Summary, QuizItem, QuizSet, Flashcard, FlashcardSet
+from .rag import retrieve, fetch_all_chunks, render_prompt, format_citations
+from .llm import invoke_llm 
+from .config import settings
+from .schemas import Summary, QuizItem, QuizSet, Flashcard, FlashcardSet
 import json
 from pydantic import ValidationError
 import time
+from .cache import (
+    summary_cache,
+    quiz_cache,
+    flashcard_cache
+)
+import hashlib
 
 SUMMARIZE_SINGLE_TEMPLATE = "summary.jinja2"
 SUMMARY_MAP_TEMPLATE = "summary.jinja2"
 SUMMARY_REDUCE_TEMPLATE = "summary_reduce.jinja2"
 QUIZ_TEMPLATE = "quiz.jinja2"
 FLASHCARDS_TEMPLATE = "flashcard.jinja2"
+
+
 
 def _resolve_target(document, query, filters, k, retrieval_k):
     effective_filters = dict(filters or {})
@@ -30,12 +38,20 @@ def _resolve_target(document, query, filters, k, retrieval_k):
     
     return fetch_all_chunks(filters=None), "corpus", None
 
-import time  # Hãy đảm bảo dòng này đã được import ở đầu file learning.py
 
 def summarize_learning(document=None, query=None, filters=None, k=None):
     chunks, scope, target = _resolve_target(
         document, query, filters, k, settings.summarize_retrieval_k
     )
+    content = "".join(chunk.text for chunk in chunks)
+    cache_key = hashlib.md5(
+    content.encode("utf-8")
+    ).hexdigest()
+    print("CACHE KEY =", cache_key)
+    print("CACHE SIZE =", len(summary_cache))
+    if cache_key in summary_cache:
+        print("SUMMARY CACHE HIT")
+        return summary_cache[cache_key]
     
     if len(chunks) <= settings.summarize_batch_size:
         prompt = render_prompt(SUMMARIZE_SINGLE_TEMPLATE, chunks=chunks)
@@ -51,17 +67,23 @@ def summarize_learning(document=None, query=None, filters=None, k=None):
             time.sleep(0.5) 
             
         prompt = render_prompt(SUMMARY_REDUCE_TEMPLATE, partials=partials)
+        print("CALLING GEMINI...")
         payload = _parse_json(invoke_llm(prompt))
         summary_text, key_points = _validate_summary_payload(payload)
         
-    return Summary(
+    result = Summary(
         scope=scope,
-        target=target,  
+        target=target,
         summary=summary_text,
         key_points=key_points,
         citations=format_citations(chunks),
         chunks=chunks,
-    )     
+    )
+
+    summary_cache[cache_key] = result
+    print("CACHE SAVED")
+    print("CACHE SIZE =", len(summary_cache))
+    return result 
     
 def _validate_summary_payload(payload):
     summary_text = payload.get("summary", "")
@@ -109,27 +131,48 @@ def generate_quiz(document=None, query=None, filters=None, count=None, k=None):
     chunks, scope, target = _resolve_target(
         document, query, filters, k, settings.generation_retrieval_k
     )
+    content = "".join(chunk.text for chunk in chunks)
+
+    cache_key = hashlib.md5(
+        (content + f"quiz:{count}").encode("utf-8")
+    ).hexdigest()
+
+    if cache_key in quiz_cache:
+        print("QUIZ CACHE HIT")
+        return quiz_cache[cache_key]
     
     n = count or settings.quiz_default_count
-    # Sửa lỗi cú pháp biến chạy vòng lặp từ số 1 thành chữ i
     valid_markers = {f"S{i}" for i in range(1, len(chunks) + 1)}
     prompt = render_prompt(QUIZ_TEMPLATE, chunks=chunks, count=n)
     payload = _parse_json(invoke_llm(prompt))
     
     items = _validate_items(payload, "items", QuizItem, "question", "quiz items", valid_markers)
-    return QuizSet(
+    result = QuizSet(
         scope=scope,
         target=target,
         items=items,
         chunks=chunks,
         citations=format_citations(chunks)
     )
+
+    quiz_cache[cache_key] = result
+
+    return result
     
 def generate_flashcards(document=None, query=None, filters=None, count=None, k=None):
     chunks, scope, target = _resolve_target(
         document, query, filters, k, settings.generation_retrieval_k
     )
-    # SỬA: flashcards_default_count -> flash_card_default_count
+    
+    content = "".join(chunk.text for chunk in chunks)
+
+    cache_key = hashlib.md5(
+        (content + f"flashcard:{count}").encode("utf-8")
+    ).hexdigest()
+
+    if cache_key in flashcard_cache:
+        print("FLASHCARD CACHE HIT")
+        return flashcard_cache[cache_key]
     n = count or settings.flash_card_default_count 
     valid_markers = {f"S{i}" for i in range(1, len(chunks) + 1)}
     prompt = render_prompt(FLASHCARDS_TEMPLATE, chunks=chunks, count=n)
@@ -137,10 +180,14 @@ def generate_flashcards(document=None, query=None, filters=None, count=None, k=N
 
     cards = _validate_items(payload, "cards", Flashcard, "front", "flashcards", valid_markers)
 
-    return FlashcardSet(
+    result = FlashcardSet(
         scope=scope,
-        target=target, 
-        cards=cards, 
+        target=target,
+        cards=cards,
         chunks=chunks,
         citations=format_citations(chunks)
     )
+
+    flashcard_cache[cache_key] = result
+
+    return result

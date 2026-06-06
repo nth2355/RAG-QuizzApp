@@ -1,4 +1,4 @@
-from config import settings
+from .config import settings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from functools import lru_cache
@@ -58,13 +58,31 @@ def get_llm(provider=None):
         f"Unsupported provider: {provider}"
     )
 
-def invoke_llm(prompt, provider=None):
-    response = get_llm().invoke(
-        [HumanMessage(content=prompt)]
-    )
 
-    return (
-        response.content
-        if isinstance(response.content, str)
-        else str(response.content)
-    )
+
+def invoke_llm(prompt, provider=None):
+    try:
+        response = get_llm().invoke(
+            [HumanMessage(content=prompt)]
+        )
+
+        return (
+            response.content
+            if isinstance(response.content, str)
+            else str(response.content)
+        )
+
+    except Exception as e:
+        error_msg = str(e)
+
+        if "RESOURCE_EXHAUSTED" in error_msg:
+            raise RuntimeError(
+                "Gemini Free Tier đã hết quota. Vui lòng đợi một lúc hoặc đổi API key."
+            )
+
+        if "PERMISSION_DENIED" in error_msg:
+            raise RuntimeError(
+                "Gemini API Key không hợp lệ hoặc đã bị vô hiệu hóa."
+            )
+
+        raise RuntimeError(f"Lỗi Gemini: {error_msg}")

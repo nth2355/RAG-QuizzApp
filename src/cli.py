@@ -2,10 +2,10 @@ import typer
 import json
 import httpx
 from pathlib import Path
-from indexing import ingest as ingest_data_dir
-from rag import answer, retrieve
-from learning import summarize_learning
-from export import export 
+from .indexing import ingest as ingest_data_dir
+from .rag import answer, retrieve
+from .learning import summarize_learning
+from .export import export 
 
 # Khởi tạo ứng dụng Typer
 app = typer.Typer(help="Hệ thống quản lý học tập RAG CLI")
@@ -15,10 +15,8 @@ def _parse_filters(filters_str: str | None) -> dict | None:
     if not filters_str:
         return None
     try:
-        # Nếu người dùng truyền vào chuỗi JSON dạng: '{"filename": "tailieu.pdf"}'
         return json.loads(filters_str)
     except json.JSONDecodeError:
-        # Nếu người dùng chỉ truyền vào chuỗi thường, tự hiểu đó là tên file
         return {"filename": filters_str}
 
 def _print_answer(ans: str):

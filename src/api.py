@@ -1,19 +1,19 @@
 from pydantic import BaseModel, Field
 from fastapi import FastAPI, UploadFile, File, HTTPException 
-from filters import MetadataFilter, filters_to_dict
-from indexing import save_and_ingest_pdf
-from rag import answer 
-from indexing import delete_document
+from .filters import MetadataFilter, filters_to_dict
+from .indexing import save_and_ingest_pdf
+from .rag import answer 
+from .indexing import delete_document
 
 
-from learning import summarize_learning, generate_quiz, generate_flashcards 
-from schemas import (
+from .learning import summarize_learning, generate_quiz, generate_flashcards 
+from .schemas import (
     RagAnswer, 
     Summary, 
     DocumentInfo,   
     UploadResponse    
 )
-from store import list_documents
+from .store import list_documents
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=1)
@@ -52,8 +52,6 @@ def health():
 
 @app.get("/documents", response_model=list[DocumentInfo])
 def documents():
-    # FastAPI và Pydantic v2 sẽ tự động ép danh sách dict từ list_documents() 
-    # thành danh sách Object DocumentInfo để khớp response_model.
     return list_documents()
 
 @app.post("/upload", response_model=UploadResponse)
@@ -61,39 +59,72 @@ async def upload(file: UploadFile = File(...)):
     content = await file.read()
     return save_and_ingest_pdf(file.filename or "", content)
 
-@app.post("/ask", response_model=RagAnswer)
-def ask(req: AskRequest):
-    return answer(req.question, k=req.k, filters=filters_to_dict(req.filters))
+@app.post("/ask")
+def ask_endpoint(req: AskRequest):
+    try:
+        return answer(
+            question=req.question,
+            k=req.k,
+            filters=req.filters,
+        )
 
-@app.post("/summarize", response_model=Summary)
-def summarize_endpoint(req: SummarizeRequest):  
-    # Đổi tên hàm thành summarize_endpoint để tránh trùng scope và gọi chính xác hàm từ learning.py
-    return summarize_learning(
-        document=req.document,
-        query=req.query,
-        filters=filters_to_dict(req.filters),
-        k=req.k
-    )
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=429,
+            detail=str(e)
+        )
+
+@app.post("/summarize")
+def summarize_endpoint(req: SummarizeRequest):
+    try:
+        return summarize_learning(
+            document=req.document,
+            query=req.query,
+            filters=req.filters,
+            k=req.k,
+        )
+
+    except RuntimeError as e:
+        print("SUMMARY ERROR:", e)
+        raise HTTPException(
+            
+            status_code=429,
+            detail=str(e)
+        )
 
 @app.post("/quiz")
 def quiz_endpoint(req: QuizzRequest):
-    return generate_quiz(
-        document=req.document,
-        query=req.query,
-        filters=filters_to_dict(req.filters),
-        count=req.count,
-        k=req.k
-    )
+    try:
+        return generate_quiz(
+            document=req.document,
+            query=req.query,
+            filters=req.filters,
+            count=req.count,
+            k=req.k,
+        )
+    except RuntimeError as e:
+        print("QUIZ ERROR:", str(e))
+        raise HTTPException(
+            status_code=429,
+            detail=str(e)
+        )
 
 @app.post("/flashcards")
 def flashcards_endpoint(req: FlashcardsRequest):
-    return generate_flashcards(
-        document=req.document,
-        query=req.query,
-        filters=filters_to_dict(req.filters),
-        count=req.count,
-        k=req.k
-    )
+    try:
+        return generate_flashcards(
+            document=req.document,
+            query=req.query,
+            filters=req.filters,
+            count=req.count,
+            k=req.k,
+        )
+
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=429,
+            detail=str(e)
+        )
     
 @app.delete("/documents/{filename}")
 def delete_document_endpoint(filename: str):

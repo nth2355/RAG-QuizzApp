@@ -1,12 +1,12 @@
 import hashlib
 from langchain_community.document_loaders import PyPDFLoader
-from config import settings
+from .config import settings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from collections import defaultdict
-from schemas import ChunkMetadata
+from .schemas import ChunkMetadata
 import uuid
-from store import get_vector_store, ensure_collection
-from utils import discover_pdfs
+from .store import get_vector_store, ensure_collection
+from .utils import discover_pdfs
 from pathlib import Path
 from qdrant_client import models
 import time

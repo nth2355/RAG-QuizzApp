@@ -2,7 +2,7 @@ from qdrant_client import QdrantClient
 from qdrant_client import models as qmodels
 from langchain_qdrant import QdrantVectorStore
 from langchain_huggingface import HuggingFaceEmbeddings
-from config import settings
+from .config import settings
 from functools import lru_cache
 import torch
 # 1. Khởi tạo Embedding Model
@@ -30,7 +30,6 @@ def get_qdrant_client():
         path=str(settings.storage_dir)
     )
 
-# 3. Hàm đảm bảo Collection tồn tại (Được gọi trong indexing.py)
 def ensure_collection(recreate=False, collection_name=None):
     client = get_qdrant_client()
     name = collection_name or settings.qdrant_collection
@@ -39,7 +38,6 @@ def ensure_collection(recreate=False, collection_name=None):
         client.delete_collection(name)
         
     if not client.collection_exists(name):
-        # Model GreenNode-Embedding-Large có kích thước vector là 1024
         client.create_collection(
             collection_name=name,
             vectors_config=qmodels.VectorParams(
@@ -48,7 +46,6 @@ def ensure_collection(recreate=False, collection_name=None):
             )
         )
 
-# 4. Hàm lấy Vector Store để thêm/tìm kiếm tài liệu 
 @lru_cache(maxsize=4)
 def get_vector_store(collection_name=None):
     name = collection_name or settings.qdrant_collection
@@ -57,8 +54,6 @@ def get_vector_store(collection_name=None):
         collection_name=name,
         embedding=get_embedding_model()
     )
-
-# 5. Hàm cuộn qua toàn bộ dữ liệu (Được gọi trong hàm fetch_all_chunks của rag.py)
 def scroll_all(collection_name, scroll_filter=None):
     client = get_qdrant_client()
     offset = None
@@ -74,8 +69,6 @@ def scroll_all(collection_name, scroll_filter=None):
         if not res:
             break
             
-        # Biến đổi cấu trúc trả về thành định dạng LangChain Document payload để khớp với rag.py
-        # rag.py mong muốn point.payload chứa 'metadata' và 'page_content' (hoặc 'text')
         valid_points = []
         for point in res:
             # Qdrant của LangChain lưu text trong trường "page_content" bên trong payload
@@ -87,7 +80,6 @@ def scroll_all(collection_name, scroll_filter=None):
             break
         offset = next_offset
 
-# 6. Hàm lấy danh sách tài liệu duy nhất (Được gọi trong api.py tại endpoint /documents)
 def list_documents():
     client = get_qdrant_client()
     name = settings.qdrant_collection
