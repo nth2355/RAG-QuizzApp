@@ -25,11 +25,11 @@ def _build_hf_local():
     return ChatHuggingFace(llm=HuggingFacePipeline(pipeline=text_gen))
 
 def _build_gemini():
-    print("GOOGLE API =", settings.google_api_key)
+    print("GOOGLE API loaded")
     return ChatGoogleGenerativeAI(
         model=settings.gemini_model,
         temperature=settings.llm_temperature,
-        google_api_key=settings.google_api_key,
+        google_api_key=settings.google_api_key, 
     )
 
 def _build_vllm():
