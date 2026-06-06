@@ -128,9 +128,11 @@ def _validate_items(payload, key, model_class, dedup_field, label, valid_markers
     return items
 
 def generate_quiz(document=None, query=None, filters=None, count=None, k=None):
+    
     chunks, scope, target = _resolve_target(
         document, query, filters, k, settings.generation_retrieval_k
     )
+    print("TOTAL CHUNKS =", len(chunks))
     content = "".join(chunk.text for chunk in chunks)
 
     cache_key = hashlib.md5(
@@ -144,6 +146,9 @@ def generate_quiz(document=None, query=None, filters=None, count=None, k=None):
     n = count or settings.quiz_default_count
     valid_markers = {f"S{i}" for i in range(1, len(chunks) + 1)}
     prompt = render_prompt(QUIZ_TEMPLATE, chunks=chunks, count=n)
+    
+    print("QUIZ PROMPT LENGTH =", len(prompt))
+    print("QUIZ CHUNKS =", len(chunks))
     payload = _parse_json(invoke_llm(prompt))
     
     items = _validate_items(payload, "items", QuizItem, "question", "quiz items", valid_markers)

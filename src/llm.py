@@ -3,6 +3,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from functools import lru_cache
 from langchain_core.messages import HumanMessage
+import traceback
 
 def _build_hf_local():
     import torch
@@ -61,6 +62,10 @@ def get_llm(provider=None):
 
 
 def invoke_llm(prompt, provider=None):
+    print("=" * 50)
+    print("PROMPT LENGTH:", len(prompt))
+    print("=" * 50)
+
     try:
         response = get_llm().invoke(
             [HumanMessage(content=prompt)]
@@ -75,6 +80,11 @@ def invoke_llm(prompt, provider=None):
     except Exception as e:
         error_msg = str(e)
 
+        print("\n" + "=" * 50)
+        print("\nFULL TRACEBACK:")
+        traceback.print_exc()
+        print("=" * 50 + "\n")
+
         if "RESOURCE_EXHAUSTED" in error_msg:
             raise RuntimeError(
                 "Gemini Free Tier đã hết quota. Vui lòng đợi một lúc hoặc đổi API key."
@@ -83,6 +93,11 @@ def invoke_llm(prompt, provider=None):
         if "PERMISSION_DENIED" in error_msg:
             raise RuntimeError(
                 "Gemini API Key không hợp lệ hoặc đã bị vô hiệu hóa."
+            )
+
+        if "API_KEY_INVALID" in error_msg:
+            raise RuntimeError(
+                "Gemini API Key không hợp lệ hoặc đã hết hạn."
             )
 
         raise RuntimeError(f"Lỗi Gemini: {error_msg}")
