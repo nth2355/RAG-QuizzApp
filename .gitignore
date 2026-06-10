@@ -1,20 +1,11 @@
-# Python
-__pycache__/
-*.pyc
+# Chặn thư mục node_modules của frontend
+RAG_Frontend/node_modules/
 
-# Virtual env
+# Chặn môi trường ảo và cache của Python (RAG_quizz)
+**/__pycache__/
+**/*.pyc
 .venv/
-env/
+venv/
 
-# Environment variables
+# Chặn file cấu hình môi trường bí mật
 .env
-
-# VSCode
-.vscode/
-
-# Data & storage
-data/
-storage/
-
-# Logs
-*.log

@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
-from fastapi import FastAPI, UploadFile, File, HTTPException 
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from .filters import MetadataFilter, filters_to_dict
 from .indexing import save_and_ingest_pdf
 from .rag import answer 
@@ -44,6 +45,14 @@ app = FastAPI(
     title="RAG Learning API",
     description="Generate Q&A, summarize, quizzes and flashcards over indexed PDFs",
     version="0.1.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.get("/health")
