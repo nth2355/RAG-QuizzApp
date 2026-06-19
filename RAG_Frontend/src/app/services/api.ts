@@ -3,9 +3,7 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-// ============================================================================
 // Type Definitions (match RAG_quizz/src/schemas.py)
-// ============================================================================
 
 export interface Citation {
   source_index: number;
@@ -73,10 +71,7 @@ export interface UploadResponse {
   filename: string;
   chunk_indexed: number;
 }
-
-// ============================================================================
 // Helper Functions
-// ============================================================================
 
 interface FetchOptions extends RequestInit {
   timeout?: number;
@@ -114,10 +109,7 @@ async function fetchWithTimeout(
     throw error;
   }
 }
-
-// ============================================================================
 // API Functions - Documents Management
-// ============================================================================
 
 export async function listDocuments(): Promise<DocumentInfo[]> {
   const response = await fetchWithTimeout(`${API_BASE_URL}/documents`, {
@@ -148,9 +140,7 @@ export async function deleteDocument(filename: string): Promise<any> {
   return response.json();
 }
 
-// ============================================================================
 // API Functions - RAG Operations
-// ============================================================================
 
 export interface AskRequest {
   question: string;
@@ -225,9 +215,7 @@ export async function generateFlashcards(
   return response.json();
 }
 
-// ============================================================================
 // Health Check
-// ============================================================================
 
 export async function healthCheck(): Promise<boolean> {
   try {
