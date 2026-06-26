@@ -1,20 +1,18 @@
-import { NavLink, Outlet, useLocation } from "react-router";
 import {
-  LayoutDashboard,
-  FileText,
-  MessageSquare,
   AlignLeft,
-  HelpCircle,
-  CreditCard,
-  Brain,
-  Upload,
-  ChevronRight,
   Bell,
+  Brain,
+  ChevronRight,
+  CreditCard,
+  FileText,
+  HelpCircle,
+  LayoutDashboard,
+  MessageSquare,
   Search,
-  User,
-  BookOpen,
+  User
 } from "lucide-react";
 import { useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router";
 import { useApp } from "../context/AppContext";
 
 const navItems = [

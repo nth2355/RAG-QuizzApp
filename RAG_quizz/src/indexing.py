@@ -84,22 +84,6 @@ def ingest(recreate=False, collection_name = None, chunker = None, chunk_size=No
     chunks = build_chunks(pdfs, chunker=chunker, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     return index_chunks(chunks, collection_name=collection_name)
 
-# def save_and_ingest_pdf(filename, file_bytes: bytes):
-#     safe_name = Path(filename).name
-#     dest = settings.data_dir / safe_name
-#     settings.data_dir.mkdir(parents=True, exist_ok=True)
-    
-#     # Ghi file nhị phân an toàn
-#     with open(dest, "wb") as f:
-#         f.write(file_bytes)
-    
-#     ensure_collection(recreate=False)
-    
-#     # Ép xử lý phân mảnh tài liệu riêng biệt
-#     chunks = build_chunks([dest])
-#     indexed_count = index_chunks(chunks)
-    
-#     return {"filename": safe_name, "chunk_indexed": indexed_count}
 import time
 
 def save_and_ingest_pdf(filename, file_bytes):
@@ -141,7 +125,6 @@ def delete_document(filename, collection_name=None):
         file_path.unlink()
         
     # 2. Xóa dữ liệu Vector liên quan đến file này trong Qdrant
-    # Thay vì tự tạo client, ta bốc store chuẩn từ store.py
     store = get_vector_store(collection_name=collection_name)
     
     client = store.client

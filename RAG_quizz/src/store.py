@@ -90,7 +90,7 @@ def list_documents():
     # Scroll lấy payload để gom nhóm các filename độc nhất
     res, _ = client.scroll(
         collection_name=name,
-        limit=10000, # Lấy số lượng đủ lớn để quét các file
+        limit=10000, 
         with_payload=True,
         with_vectors=False
     )
@@ -108,7 +108,7 @@ def list_documents():
                 "document_id": doc_id,
                 "filename": filename,
                 "source": source,
-                "size_bytes": None # Qdrant không lưu size file gốc, để None để khớp Schema
+                "size_bytes": None 
             }
             
     return list(seen_docs.values())

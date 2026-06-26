@@ -58,7 +58,7 @@ def _jinja_env():
     return Environment(
         loader=FileSystemLoader(str(PROMPTS_DIR)),
         autoescape=False, undefined=StrictUndefined,
-        trim_blocks=True, lstrip_blocks=True,  # Sửa lỗi typo lstrip_bock
+        trim_blocks=True, lstrip_blocks=True,
     )
     
 def render_prompt(template_name, **context):
@@ -79,6 +79,13 @@ def format_citations(chunks):
 
 def answer(question, k=None, filters=None, collection_name=None):
     chunks = retrieve(question, k=k, filters=filters, collection_name=collection_name)
+    print("TOTAL CHUNKS =", len(chunks))
+
+    for i, c in enumerate(chunks):
+        print(
+            f"Chunk {i+1}:",
+            len(c.text)
+        )
     
     if not chunks:
         return RagAnswer(
@@ -86,6 +93,7 @@ def answer(question, k=None, filters=None, collection_name=None):
             answer="Tôi không đủ thông tin ngữ cảnh được cung cấp để trả lời."   
         )
     prompt = render_prompt(ANSWER_TEMPLATE, question=question, chunks=chunks)
+    print("PROMPT LENGTH =", len(prompt))
     text = invoke_llm(prompt)
     
     return RagAnswer(

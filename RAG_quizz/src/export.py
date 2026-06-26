@@ -50,7 +50,7 @@ def _to_markdown(model) -> str:
     elif isinstance(model, list):
         for i, item in enumerate(model, 1):
             lines.append(f"### Mục {i}")
-            lines.append(str(item)) # Hoặc logic chi tiết cho từng loại item
+            lines.append(str(item)) 
             lines.append("")
 
     # 4. Trường hợp mặc định nếu không khớp các mẫu trên

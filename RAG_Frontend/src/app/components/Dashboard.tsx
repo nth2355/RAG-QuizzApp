@@ -1,26 +1,26 @@
+import {
+  AlignLeft,
+  ArrowRight,
+  BarChart2,
+  BookOpen,
+  CheckCircle,
+  Clock,
+  CreditCard,
+  FileText,
+  HelpCircle,
+  MessageSquare,
+  Trash2,
+  Upload,
+  Zap,
+} from "lucide-react";
 import { Link } from "react-router";
 import {
-  FileText,
-  MessageSquare,
-  AlignLeft,
-  HelpCircle,
-  CreditCard,
-  Clock,
-  CheckCircle,
-  ArrowRight,
-  BookOpen,
-  Zap,
-  Upload,
-  Trash2,
-  BarChart2,
-} from "lucide-react";
-import {
-  AreaChart,
   Area,
-  XAxis,
-  YAxis,
+  AreaChart,
   ResponsiveContainer,
   Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 import { useApp } from "../context/AppContext";
 import { formatRelativeTime, type ActivityType } from "../services/activityTracker";
