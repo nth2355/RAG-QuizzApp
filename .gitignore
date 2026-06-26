@@ -6,7 +6,11 @@ RAG_Frontend/node_modules/
 **/*.pyc
 .venv/
 venv/
+hf_cache
 
 # Chặn file cấu hình môi trường bí mật
 .env
 RAG_quizz/.env
+
+# dist
+RAG_Frontend/dist/

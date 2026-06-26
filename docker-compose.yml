@@ -25,6 +25,7 @@ services:
     volumes:
       - ./RAG_quizz/storage:/app/storage
       - ./RAG_quizz/data:/app/data
+      - ./hf_cache:/root/.cache/huggingface 
 
   frontend:
     build: ./RAG_Frontend
