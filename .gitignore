@@ -9,3 +9,4 @@ venv/
 
 # Chặn file cấu hình môi trường bí mật
 .env
+RAG_quizz/.env

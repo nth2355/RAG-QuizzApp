@@ -1,5 +1,4 @@
 services:
-
   backend:
     build: ./RAG_quizz
     container_name: rag_backend
@@ -8,9 +7,20 @@ services:
 
     env_file:
       - ./RAG_quizz/.env
-    
+
     environment:
       - HF_TOKEN=${HF_TOKEN}
+      - HF_HUB_DISABLE_PROGRESS_BARS=0 
+      - PYTHONUNBUFFERED=1
+    # CẤU HÌNH CẤP QUYỀN TRUY CẬP GPU (NVIDIA CUDA)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
 
     volumes:
       - ./RAG_quizz/storage:/app/storage

@@ -5,6 +5,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from .config import settings
 from functools import lru_cache
 import torch
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 # 1. Khởi tạo Embedding Model
 @lru_cache(maxsize=1)
 def get_embedding_model():
@@ -112,3 +113,15 @@ def list_documents():
             }
             
     return list(seen_docs.values())
+
+@lru_cache(maxsize=1)
+def get_reranker():
+    print("LOADING RERANKER MODEL")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Reranker device = {device}")
+    tokenizer = AutoTokenizer.from_pretrained(settings.reranker_model)
+    model = AutoModelForSequenceClassification.from_pretrained(settings.reranker_model)
+    model.to(device)
+    model.eval()
+    
+    return tokenizer, model

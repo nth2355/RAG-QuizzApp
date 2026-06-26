@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     flash_card_default_count: int = Field(default=15, ge=1, le=100)
     api_url: str = "http://localhost:8000"
     
+    # Cấu hình Re-ranker
+    reranker_model: str="BAAI/bge-reranker-large"
+    rerank_top_k: int = Field(default=5, ge=1, le=20)
+    
     
 # Kiểm tra cấu hình bằng model_validator
     @model_validator(mode="after")

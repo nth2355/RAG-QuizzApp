@@ -15,7 +15,8 @@ from .schemas import (
     DocumentInfo,   
     UploadResponse    
 )
-from .store import list_documents, get_embedding_model, get_qdrant_client
+from .store import list_documents, get_embedding_model, get_qdrant_client, get_reranker
+import time
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=1)
@@ -44,30 +45,44 @@ import gc
 import torch
 from contextlib import asynccontextmanager
 
-# TẢI TRƯỚC VÀ DỌN DẸP BỘ NHỚ KHI TẮT
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    #KHỞI ĐỘNG SERVER: NẠP MODEL VÀO BỘ NHỚ
     print("\n" + "="*50)
-    print(" LOG: Đang khởi tạo hệ thống và nạp Model Embedding Local...")
+    print(" LOG: Bắt đầu quá trình kích hoạt Hệ thống RAG...")
     print("="*50)
+    
+    #THEO DÕI KHỞI TẠO EMBEDDING ---
+    start_time = time.time()
+    print("[Bước 1/3] Đang nạp Embedding Model (GreenNode)...")
     try:
-        # Tải mô hình Embedding lên bộ nhớ (RAM/VRAM) ngay từ đầu
         get_embedding_model()
-        print(" LOG: Tải thành công Embedding Model.")
-        
-        # Kết nối sẵn sàng tới cơ sở dữ liệu Qdrant
-        get_qdrant_client()
-        print(" LOG: Kết nối Vector DB sẵn sàng.")
-        
+        print(f"    => THÀNH CÔNG! Thời gian nạp: {time.time() - start_time:.2f} giây.")
     except Exception as e:
-        print(f" KHÔNG THỂ TẢI MODEL KHI KHỞI CHẠY: {e}")
+        print(f"    LỖI nạp Embedding: {e}")
+
+    #THEO DÕI KHỞI TẠO RE-RANKER ---
+    start_time = time.time()
+    print("[Bước 2/3] Đang nạp Re-ranker Model (BGE-Reranker)...")
+    try:
+        get_reranker()
+        print(f"    => THÀNH CÔNG! Thời gian nạp: {time.time() - start_time:.2f} giây.")
+    except Exception as e:
+        print(f"    LỖI nạp Re-ranker: {e}")
+
+    #THEO DÕI KẾT NỐI VECTOR DB ---
+    start_time = time.time()
+    print("[Bước 3/3] Đang kết nối tới Qdrant Vector DB...")
+    try:
+        get_qdrant_client()
+        print(f"    => THÀNH CÔNG! Thời gian kết nối: {time.time() - start_time:.2f} giây.")
+    except Exception as e:
+        print(f"    LỖI kết nối Vector DB: {e}")
         
     print("="*50)
-    print(" LOG: Hệ thống RAG đã sẵn sàng tiếp nhận Request từ Frontend!")
+    print(" LOG: Toàn bộ mô hình đã nạp xong! Hệ thống sẵn sàng tiếp nhận Request.")
     print("="*50 + "\n")
     
-    # Server dừng lại ở đây và chạy liên tục để nhận request
+    # Server dừng lại và chạy liên tục để nhận request
     yield
 
     #TẮT SERVER: GIẢI PHÓNG BỘ NHỚ (RAM/VRAM)

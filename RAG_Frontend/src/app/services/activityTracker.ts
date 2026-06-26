@@ -39,7 +39,7 @@ const STORAGE_KEY = "rag_activity_stats";
 const MAX_ACTIVITY = 50;
 const MAX_DAYS = 30;
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// helpers
 
 function today(): string {
   return new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
@@ -50,7 +50,6 @@ function load(): StoredStats {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw) as StoredStats;
   } catch {
-    // corrupted — fall through to defaults
   }
   return {
     totalQuestions: 0,
@@ -90,7 +89,7 @@ function makeId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-// ── public API ────────────────────────────────────────────────────────────────
+//public API
 
 /** Record a user chat question */
 export function trackQuestion(detail: string, docName?: string) {
