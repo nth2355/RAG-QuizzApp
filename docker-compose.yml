@@ -6,7 +6,7 @@ services:
       - "8000:8000"
 
     env_file:
-      - ./RAG_quizz/.env
+      - ./RAG_Backend/.env
 
     environment:
       - HF_TOKEN=${HF_TOKEN}
@@ -23,8 +23,8 @@ services:
 
 
     volumes:
-      - ./RAG_quizz/storage:/app/storage
-      - ./RAG_quizz/data:/app/data
+      - ./RAG_Backend/storage:/app/storage
+      - ./RAG_Backend/data:/app/data
       - ./hf_cache:/root/.cache/huggingface 
 
   frontend:
