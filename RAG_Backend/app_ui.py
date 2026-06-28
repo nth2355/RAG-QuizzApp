@@ -30,7 +30,7 @@ def _api(method: str, path: str, **kwargs):
             response.raise_for_status()
             return response.json()
     except httpx.TimeoutException:
-        st.error("❌ Hệ thống đang xử lý tài liệu lớn, thời gian tính toán của CPU vượt quá dự kiến. Vui lòng kiểm tra lại log Backend!")
+        st.error("Hệ thống đang xử lý tài liệu lớn, thời gian tính toán của CPU vượt quá dự kiến. Vui lòng kiểm tra lại log Backend!")
         return None
     except Exception as e:
         st.error(f"Mất kết nối tới Backend: {e}")

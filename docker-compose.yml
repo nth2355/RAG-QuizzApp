@@ -1,6 +1,6 @@
 services:
   backend:
-    build: ./RAG_quizz
+    build: ./RAG_Backend
     container_name: rag_backend
     ports:
       - "8000:8000"
