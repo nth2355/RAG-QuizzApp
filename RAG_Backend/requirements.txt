@@ -1,29 +1,23 @@
-# --- TẦNG CƠ SỞ VÀ BIẾN MÔI TRƯỜNG ---
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 httpx>=0.24.0
 jinja2>=3.1.0
 python-dotenv>=1.0.0
 
-# TẦNG WEB API (BACKEND)
 fastapi>=0.100.0
 uvicorn[standard]>=0.22.0
 python-multipart>=0.0.6
 
-# TẦNG GIAO DIỆN CHỦ ĐỘNG (FRONTEND & CLI)
 streamlit>=1.30.0
 typer>=0.9.0
 
-# TẦNG TRUY XUẤT VÀ CORE AI (LANGCHAIN)
 langchain>=0.1.0
 langchain-core>=0.1.0
 langchain-community>=0.1.0
 
-# TẦNG VECTOR DATABASE (QDRANT)
 qdrant-client>=1.7.0
 langchain-qdrant>=0.1.0
 
-# TẦNG EMBEDDING & CHUẨN HÓA MÔ HÌNH LOCAL
 langchain-huggingface>=0.1.0
 transformers>=4.35.0
 torch>=2.0.0
@@ -31,7 +25,7 @@ sentencepiece>=0.1.99
 pypdf>=3.17.0
 sentence-transformers
 
-# TẦNG LLM BACKEND (GEMINI & VLLM/OPENAI)
+
 langchain-google-genai>=1.0.0
 langchain-openai>=0.0.5
 

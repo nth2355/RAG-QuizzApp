@@ -107,8 +107,7 @@ def fetch_all_chunks(filters=None, collection_name=None):
         for point in page:
             payload = point.payload or {}
             meta = payload.get("metadata") or {}
-            text = payload.get("page_content") or payload.get("text") or ""
-            
+            text = payload.get("page_content") or payload.get("text") or ""   
             if meta and text:
                 results.append(RetrievedChunk(text=text, score=0.0, metadata=ChunkMetadata(**meta)))
     return sorted(results, key=lambda r: (

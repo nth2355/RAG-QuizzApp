@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 from pydantic import model_validator
 from typing import Literal
-
 ### ĐỊNH NGHĨA CÁC KIỂU DỮ LIỆU CHUẨN
 class ChunkMetadata(BaseModel):
     document_id: str
@@ -10,13 +9,11 @@ class ChunkMetadata(BaseModel):
     page: int
     chunk_id: str
     section: str | None = None
-    
+ 
 class RetrievedChunk(BaseModel):
     text: str
     score: float
     metadata: ChunkMetadata
-
-# Chuẩn hóa lại chữ Citation đúng chính tả tiếng Anh
 class Citation(BaseModel):
     source_index: int
     source_marker: str
@@ -24,11 +21,10 @@ class Citation(BaseModel):
     page: int
     section: str | None = None
     chunk_id: str | None = None
-    
 class RagAnswer(BaseModel):
     question: str
     answer: str
-    citations: list[Citation] = Field(default_factory=list)  # Đã sửa lỗi typo ciatations
+    citations: list[Citation] = Field(default_factory=list)
     chunks: list[RetrievedChunk] = Field(default_factory=list)
 
 class Summary(BaseModel):
@@ -38,7 +34,6 @@ class Summary(BaseModel):
     key_points: list[str] = Field(default_factory=list)
     citations: list[Citation] = Field(default_factory=list)
     chunks: list[RetrievedChunk] = Field(default_factory=list)
-
 class QuizItem(BaseModel):
     question: str
     options: list[str] = Field(min_length=4, max_length=4)
@@ -47,13 +42,12 @@ class QuizItem(BaseModel):
     source_markers: list[str] = Field(default_factory=list)
     difficulty: str | None = None
     topic: str | None = None
-    
+   
     @model_validator(mode="after")
     def _validate_correct_index(self) -> "QuizItem":
         if not 0 <= self.correct_index < len(self.options):
             raise ValueError("correct_index out of range")
         return self
-    
 class QuizSet(BaseModel):
     scope: Literal["query", "document", "filter", "corpus"]
     target: str | None = None
@@ -66,23 +60,18 @@ class Flashcard(BaseModel):
     back: str
     hint: str | None = None
     topic: str | None = None
-    source_markers: list[str] = Field(default_factory=list)
-    
+    source_markers: list[str] = Field(default_factory=list) 
 class FlashcardSet(BaseModel):
     scope: Literal["query", "document", "filter", "corpus"]
     target: str | None = None
     cards: list[Flashcard] = Field(default_factory=list)
     citations: list[Citation] = Field(default_factory=list)
-    chunks: list[RetrievedChunk] = Field(default_factory=list)
-    
+    chunks: list[RetrievedChunk] = Field(default_factory=list) 
 class DocumentInfo(BaseModel):
-    """Định dạng trả về cho danh sách tài liệu hiển thị trên giao diện."""
     document_id: str
     filename: str
     source: str | None = None
     size_bytes: int | None = None 
-
 class UploadResponse(BaseModel):
-    """Định dạng phản hồi sau khi người dùng upload file PDF thành công."""
     filename: str
     chunk_indexed: int

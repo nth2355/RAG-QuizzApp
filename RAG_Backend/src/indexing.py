@@ -14,11 +14,8 @@ import time
 def _document_id(path):
     raw = f"{path.name}:{path.stat().st_size}"
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
-
-
 def _chunk_id(doc_id, page, index):
     return f"{doc_id}:{page}:{index}"
-
 def _load_pdf(path):
     pages = PyPDFLoader(str(path)).load()
     doc_id = _document_id(path)
@@ -43,13 +40,11 @@ def _splitter (chunk_size=None, chunk_overlap=None):
         separators=["\n\n", "\n", ". ", ""],
         keep_separator=False,
     )
-    
-    
+
 def build_chunks(pdf_paths, chunk_size=None, chunk_overlap=None, chunker=None):
     page_docs = []
     for path in pdf_paths:
         page_docs.extend(_load_pdf(path))
-    
     splitter = chunker or _splitter(chunk_size, chunk_overlap)
     chunks =splitter.split_documents(page_docs)
     per_doc_counter = defaultdict(int)
@@ -57,8 +52,6 @@ def build_chunks(pdf_paths, chunk_size=None, chunk_overlap=None, chunker=None):
         doc_id = chunk.metadata["document_id"]
         idx = per_doc_counter[doc_id]
         per_doc_counter[doc_id] += 1
-        
-        
         meta = ChunkMetadata (
             document_id = doc_id,
             filename = chunk.metadata["filename"],

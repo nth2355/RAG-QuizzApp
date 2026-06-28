@@ -11,49 +11,27 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 def get_embedding_model():
     print("LOADING EMBEDDING MODEL")
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
     print(f"Embedding device = {device}")
-
     return HuggingFaceEmbeddings(
         model_name=settings.embedding_model,
         model_kwargs={"device": device}
     )
-
-# 2. Khởi tạo Qdrant Client cục bộ theo storage_dir
 @lru_cache(maxsize=1)
 def get_qdrant_client():
-    settings.storage_dir.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    return QdrantClient(
-        path=str(settings.storage_dir)
-    )
-
+    settings.storage_dir.mkdir(parents=True,exist_ok=True)
+    return QdrantClient(path=str(settings.storage_dir))
 def ensure_collection(recreate=False, collection_name=None):
     client = get_qdrant_client()
     name = collection_name or settings.qdrant_collection
-    
     if recreate and client.collection_exists(name):
-        client.delete_collection(name)
-        
+        client.delete_collection(name)     
     if not client.collection_exists(name):
-        client.create_collection(
-            collection_name=name,
-            vectors_config=qmodels.VectorParams(
-                size=1024, 
-                distance=qmodels.Distance.COSINE
-            )
-        )
-
+        client.create_collection(collection_name=name, vectors_config=qmodels.VectorParams(
+            size=1024, distance=qmodels.Distance.COSINE))
 @lru_cache(maxsize=4)
 def get_vector_store(collection_name=None):
     name = collection_name or settings.qdrant_collection
-    return QdrantVectorStore(
-        client=get_qdrant_client(),
-        collection_name=name,
-        embedding=get_embedding_model()
+    return QdrantVectorStore(client=get_qdrant_client(),collection_name=name,embedding=get_embedding_model()
     )
 def scroll_all(collection_name, scroll_filter=None):
     client = get_qdrant_client()
