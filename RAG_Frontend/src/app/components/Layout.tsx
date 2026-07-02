@@ -7,6 +7,8 @@ import {
   FileText,
   HelpCircle,
   LayoutDashboard,
+  LogOut,
+
   MessageSquare,
   Search,
   User
@@ -37,7 +39,9 @@ export function Layout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const pageTitle = pageTitles[location.pathname] ?? "RAG Quiz";
-  const { selectedDoc, setSelectedDoc, documentsList } = useApp();
+  
+  // 2. LẤY HÀM LOGOUT VÀ THÔNG TIN USER TỪ CONTEXT
+  const { selectedDoc, setSelectedDoc, documentsList, logout, user } = useApp();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -169,8 +173,10 @@ export function Layout() {
                 style={{ width: 6, height: 6, background: "var(--primary)" }}
               />
             </button>
+
+            {/* Profile Block hiển thị Tên thật & Role từ Backend */}
             <div
-              className="flex items-center gap-2 rounded-lg px-3 py-1.5 cursor-pointer transition-colors"
+              className="flex items-center gap-2 rounded-lg px-3 py-1.5 select-none"
               style={{ background: "var(--muted)" }}
             >
               <div
@@ -179,8 +185,21 @@ export function Layout() {
               >
                 <User size={12} color="#fff" />
               </div>
-              <span style={{ fontSize: 13, fontWeight: 500, color: "var(--foreground)" }}>Học viên</span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "var(--foreground)" }}>
+                {user?.full_name || "Học viên"} 
+                <span className="text-[10px] ml-1 opacity-60 uppercase">({user?.role})</span>
+              </span>
             </div>
+
+            {/* 3. NÚT ĐĂNG XUẤT ĐƯỢC CHÈN THÊM VÀO ĐÂY */}
+            <button
+              onClick={logout}
+              title="Đăng xuất khỏi hệ thống"
+              className="flex items-center justify-center rounded-lg hover:bg-red-500/10 text-[var(--destructive)] transition-colors border border-transparent hover:border-red-500/20"
+              style={{ width: 36, height: 36, background: "var(--muted)", cursor: "pointer" }}
+            >
+              <LogOut size={16} />
+            </button>
           </div>
         </header>
 
@@ -192,4 +211,3 @@ export function Layout() {
     </div>
   );
 }
-

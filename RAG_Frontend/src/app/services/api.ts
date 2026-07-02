@@ -1,9 +1,4 @@
-// API Service Layer - Centralized fetch calls to FastAPI backend
-// Using native fetch with proper error handling, loading states, and type safety
-
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-
-// Type Definitions (match RAG_quizz/src/schemas.py)
 
 export interface Citation {
   source_index: number;
@@ -71,6 +66,27 @@ export interface UploadResponse {
   filename: string;
   chunk_indexed: number;
 }
+
+// NEW: Auth Type Definitions (match src/auth_schemas.py)
+export interface UserCreate {
+  email: string;
+  password: str;
+  full_name: string;
+  role: "student" | "teacher";
+}
+
+export interface UserLogin {
+  email: string;
+  password: str;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  role: "student" | "teacher";
+  full_name: string;
+}
+
 // Helper Functions
 
 interface FetchOptions extends RequestInit {
@@ -86,9 +102,17 @@ async function fetchWithTimeout(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+  const headers = new Headers(fetchOptions.headers || {});
+  const token = localStorage.getItem("token");
+
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
   try {
     const response = await fetch(url, {
       ...fetchOptions,
+      headers,
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
@@ -109,7 +133,28 @@ async function fetchWithTimeout(
     throw error;
   }
 }
-// API Functions - Documents Management
+
+export async function registerUser(
+  data: UserCreate,
+): Promise<{ message: string; user_id: number }> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return response.json();
+}
+
+export async function loginUser(
+  credentials: UserLogin,
+): Promise<TokenResponse> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(credentials),
+  });
+  return response.json();
+}
 
 export async function listDocuments(): Promise<DocumentInfo[]> {
   const response = await fetchWithTimeout(`${API_BASE_URL}/documents`, {
@@ -125,7 +170,7 @@ export async function uploadDocument(file: File): Promise<UploadResponse> {
   const response = await fetchWithTimeout(`${API_BASE_URL}/upload`, {
     method: "POST",
     body: formData,
-    timeout: 600000, // 10 minutes for large PDFs
+    timeout: 600000,
   });
   return response.json();
 }
@@ -140,8 +185,6 @@ export async function deleteDocument(filename: string): Promise<any> {
   return response.json();
 }
 
-// API Functions - RAG Operations
-
 export interface AskRequest {
   question: string;
   k?: number;
@@ -153,7 +196,7 @@ export async function askQuestion(request: AskRequest): Promise<RagAnswer> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
-    timeout: 120000, // 2 minutes for LLM inference
+    timeout: 120000,
   });
   return response.json();
 }
@@ -172,7 +215,7 @@ export async function summarizeDocument(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
-    timeout: 300000, // 5 minutes for summarization
+    timeout: 300000,
   });
   return response.json();
 }
@@ -190,7 +233,7 @@ export async function generateQuiz(request: QuizRequest): Promise<QuizSet> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
-    timeout: 300000, // 5 minutes for quiz generation
+    timeout: 300000,
   });
   return response.json();
 }
@@ -210,12 +253,10 @@ export async function generateFlashcards(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
-    timeout: 300000, // 5 minutes for flashcard generation
+    timeout: 300000,
   });
   return response.json();
 }
-
-// Health Check
 
 export async function healthCheck(): Promise<boolean> {
   try {

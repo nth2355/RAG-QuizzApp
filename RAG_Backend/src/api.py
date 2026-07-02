@@ -17,6 +17,8 @@ from .schemas import (
 )
 from .store import list_documents, get_embedding_model, get_qdrant_client, get_reranker
 import time
+from src.database.connection import engine, Base
+from src.auth_api import router as auth_router
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=1)
@@ -116,6 +118,9 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan  
 )
+
+Base.metadata.create_all(bind=engine) 
+app.include_router(auth_router) 
 
 app.add_middleware(
     CORSMiddleware,
