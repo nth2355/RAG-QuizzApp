@@ -34,6 +34,7 @@ export interface QuizItem {
 }
 
 export interface QuizSet {
+  id?: number;
   scope: "query" | "document" | "filter" | "corpus";
   target?: string | null;
   items: QuizItem[];
@@ -49,6 +50,7 @@ export interface Flashcard {
 }
 
 export interface FlashcardSet {
+  id?: number;
   scope: "query" | "document" | "filter" | "corpus";
   target?: string | null;
   cards: Flashcard[];
@@ -67,7 +69,6 @@ export interface UploadResponse {
   chunk_indexed: number;
 }
 
-// NEW: Auth Type Definitions (match src/auth_schemas.py)
 export interface UserCreate {
   email: string;
   password: str;
@@ -86,8 +87,6 @@ export interface TokenResponse {
   role: "student" | "teacher";
   full_name: string;
 }
-
-// Helper Functions
 
 interface FetchOptions extends RequestInit {
   timeout?: number;
@@ -269,4 +268,37 @@ export async function healthCheck(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export interface ActivityEvent {
+  id: string;
+  type: "chat" | "upload" | "delete" | "quiz_complete" | "flashcard_session" | "summarize";
+  timestamp: string;
+  detail: string;
+  docName?: string;
+  meta?: Record<string, any>;
+}
+
+export interface DashboardStats {
+  totalQuestions: number;
+  totalQuizzes: number;
+  totalFlashcards: number;
+  recentActivity: ActivityEvent[];
+  chartData: Array<{ day: string; questions: number; quizzes: number; flashcards: number }>;
+}
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/stats`, {
+    method: "GET",
+  });
+  return response.json();
+}
+
+export async function submitQuizScore(quizId: number, score: number): Promise<any> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/quiz/${quizId}/score`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ score }),
+  });
+  return response.json();
 }

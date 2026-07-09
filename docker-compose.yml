@@ -1,13 +1,10 @@
-
 services:
   postgre_db:
     image: postgres:15-alpine
     container_name: rag_postgres
     restart: always
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+    env_file:
+      - ./RAG_Backend/.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -24,11 +21,8 @@ services:
     env_file:
       - ./RAG_Backend/.env
     environment:
-      - HF_TOKEN=${HF_TOKEN}
       - HF_HUB_DISABLE_PROGRESS_BARS=0 
       - PYTHONUNBUFFERED=1
-      - DATABASE_URL=${DATABASE_URL}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     deploy:
       resources:
         reservations:

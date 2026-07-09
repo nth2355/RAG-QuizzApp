@@ -7,6 +7,7 @@ class MetadataFilter(BaseModel):
     page: int | None = None
     section: str | None = None
     document_id: str | None = None
+    document_ids: list[str] | None = None
 
     @model_validator(mode="after")
     def _normalize(self) -> "MetadataFilter":
@@ -28,6 +29,8 @@ class MetadataFilter(BaseModel):
             self.section = self.section.strip() or None
         if isinstance(self.document_id, str):
             self.document_id = self.document_id.strip() or None
+        if isinstance(self.document_ids, list):
+            self.document_ids = [d.strip() for d in self.document_ids if isinstance(d, str) and d.strip()] or None
             
         return self
     
@@ -56,6 +59,10 @@ def filter_to_qdrant(filters):
             conditions.append(qmodels.FieldCondition(
                 
             key="metadata.filename", match=qmodels.MatchValue(any=value)
+            ))
+        elif field == "document_ids" and isinstance(value, list):
+            conditions.append(qmodels.FieldCondition(
+                key="metadata.document_id", match=qmodels.MatchValue(any=value)
             ))
         elif isinstance(value, (str, int)):
             conditions.append(qmodels.FieldCondition(

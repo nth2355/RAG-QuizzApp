@@ -49,6 +49,7 @@ class QuizItem(BaseModel):
             raise ValueError("correct_index out of range")
         return self
 class QuizSet(BaseModel):
+    id: int | None = None
     scope: Literal["query", "document", "filter", "corpus"]
     target: str | None = None
     items: list[QuizItem] = Field(default_factory=list)
@@ -62,6 +63,7 @@ class Flashcard(BaseModel):
     topic: str | None = None
     source_markers: list[str] = Field(default_factory=list) 
 class FlashcardSet(BaseModel):
+    id: int | None = None
     scope: Literal["query", "document", "filter", "corpus"]
     target: str | None = None
     cards: list[Flashcard] = Field(default_factory=list)

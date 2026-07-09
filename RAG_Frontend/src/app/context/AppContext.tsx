@@ -1,10 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import {
-  getLast7DaysChart,
-  getStats,
-  type ActivityEvent
-} from "../services/activityTracker";
-import { DocumentInfo, listDocuments } from "../services/api";
+import { DocumentInfo, listDocuments, getDashboardStats, DashboardStats, ActivityEvent } from "../services/api";
 
 export interface Citation {
   source_marker: string;
@@ -20,13 +15,7 @@ export interface ChatMessage {
   timestamp: string;
 }
 
-export interface DashboardStats {
-  totalQuestions: number;
-  totalQuizzes: number;
-  totalFlashcards: number;
-  recentActivity: ActivityEvent[];
-  chartData: Array<{ day: string; questions: number; quizzes: number; flashcards: number }>;
-}
+
 
 interface UserState {
   full_name: string;
@@ -64,15 +53,12 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
     const stored = sessionStorage.getItem("rag_chat_history");
     return stored ? JSON.parse(stored) : [];
   });
-  const [stats, setStats] = useState<DashboardStats>(() => {
-    const s = getStats();
-    return {
-      totalQuestions: s.totalQuestions,
-      totalQuizzes: s.totalQuizzes,
-      totalFlashcards: s.totalFlashcards,
-      recentActivity: s.recentActivity,
-      chartData: getLast7DaysChart(),
-    };
+  const [stats, setStats] = useState<DashboardStats>({
+    totalQuestions: 0,
+    totalQuizzes: 0,
+    totalFlashcards: 0,
+    recentActivity: [],
+    chartData: [],
   });
 
 
@@ -133,22 +119,22 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const refreshStats = useCallback(() => {
-    const s = getStats();
-    setStats({
-      totalQuestions: s.totalQuestions,
-      totalQuizzes: s.totalQuizzes,
-      totalFlashcards: s.totalFlashcards,
-      recentActivity: s.recentActivity,
-      chartData: getLast7DaysChart(),
-    });
+  const refreshStats = useCallback(async () => {
+    if (!localStorage.getItem("token")) return;
+    try {
+      const s = await getDashboardStats();
+      setStats(s);
+    } catch (err) {
+      console.error("Error refreshing stats from backend:", err);
+    }
   }, []);
 
   useEffect(() => {
     if (token) {
       refreshDocuments();
+      refreshStats();
     }
-  }, [token]);
+  }, [token, refreshStats]);
 
   return (
     <AppContext.Provider

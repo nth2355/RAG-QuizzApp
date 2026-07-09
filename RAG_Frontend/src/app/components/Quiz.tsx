@@ -16,6 +16,7 @@ import {
 import { useEffect, useState, useCallback } from "react";
 import {
     generateQuiz,
+    submitQuizScore,
     QuizSet
 } from "../services/api";
 import { useApp } from "../context/AppContext";
@@ -125,6 +126,13 @@ export function Quiz() {
       const finalScore = answers.filter(
         (a, i) => a === quizSet.items[i]?.correct_index
       ).length;
+      
+      if (quizSet.id !== undefined && quizSet.id !== null) {
+        submitQuizScore(quizSet.id, finalScore)
+          .then(() => refreshStats())
+          .catch((err) => console.error("Error submitting quiz score:", err));
+      }
+      
       trackQuizComplete(
         finalScore,
         quizSet.items.length,
