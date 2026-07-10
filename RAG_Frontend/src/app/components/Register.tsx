@@ -26,7 +26,7 @@ export function Register() {
       });
 
       setSuccess("Đăng ký tài khoản thành công! Đang chuyển hướng...");
-      
+
       // 2. Chuyển hướng người dùng sang trang Login sau 2 giây để họ đăng nhập
       setTimeout(() => {
         window.location.href = "/login";

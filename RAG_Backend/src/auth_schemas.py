@@ -9,7 +9,8 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=6)
     full_name: str = Field(..., min_length=2)
-    role: UserRole = UserRole.STUDENT
+    # role is intentionally NOT accepted from the client to prevent privilege escalation.
+    # All new users are registered as 'student' by the server.
 
 class UserLogin(BaseModel):
     email: EmailStr

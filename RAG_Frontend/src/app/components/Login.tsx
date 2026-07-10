@@ -17,10 +17,10 @@ export function Login() {
     try {
       // 1. Gọi API login xuống FastAPI Backend thông qua api.ts
       const data = await loginUser({ email, password });
-      
+
       // 2. Kích hoạt lưu trạng thái đăng nhập toàn cục vào AppContext & localStorage
       login(data.access_token, data.role, data.full_name);
-      
+
       // 3. Phân quyền điều hướng trang dựa theo vai trò (Role) từ Backend trả về
       if (data.role === "teacher") {
         window.location.href = "/dashboard"; // Trang quản trị tài liệu/đề thi của giáo viên

@@ -21,7 +21,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         email=user_data.email,
         full_name=user_data.full_name,
         hashed_password=get_password_hash(user_data.password),
-        role=user_data.role 
+        role="student"  # Always assigned by the server; never trusted from the client.
     )
     
     db.add(new_user)

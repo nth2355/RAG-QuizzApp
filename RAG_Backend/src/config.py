@@ -1,6 +1,6 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from typing import Literal
 from pydantic import model_validator
 from functools import lru_cache
@@ -45,16 +45,23 @@ class Settings(BaseSettings):
     # Cấu hình Re-ranker
     reranker_model: str="BAAI/bge-reranker-large"
     rerank_top_k: int = Field(default=5, ge=1, le=20)
+
+    # Cấu hình JWT — đọc từ biến môi trường JWT_SECRET_KEY (không có tiền tố RAG_)
+    jwt_secret_key: str = Field(
+        validation_alias=AliasChoices("JWT_SECRET_KEY", "RAG_JWT_SECRET_KEY")
+    )
        
 # Kiểm tra cấu hình bằng model_validator
     @model_validator(mode="after")
-    def validate_config(self)->"Settings":
+    def validate_config(self) -> "Settings":
         if self.chunk_overlap >= self.chunk_size:
             raise ValueError("chunk_overlap must be smaller than chunk_size")
         if self.hf_device < -1:
-            raise ValueError ("hf_device must be -1 for CPU or >= 0 for CUDA. ")
+            raise ValueError("hf_device must be -1 for CPU or >= 0 for CUDA.")
         if self.llm_provider == "gemini" and not self.google_api_key:
-            raise ValueError ("GOOGLE_API_KEY is require when llm_provider ='gemini'.")
+            raise ValueError("GOOGLE_API_KEY is required when llm_provider='gemini'.")
+        if not self.jwt_secret_key:
+            raise ValueError("JWT_SECRET_KEY must not be empty.")
         return self
 
 @lru_cache(maxsize=1)

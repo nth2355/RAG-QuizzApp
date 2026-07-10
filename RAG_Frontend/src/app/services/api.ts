@@ -71,14 +71,14 @@ export interface UploadResponse {
 
 export interface UserCreate {
   email: string;
-  password: str;
+  password: string;
   full_name: string;
-  role: "student" | "teacher";
+  // role is intentionally omitted: the backend always assigns 'student' to new accounts.
 }
 
 export interface UserLogin {
   email: string;
-  password: str;
+  password: string;
 }
 
 export interface TokenResponse {
@@ -272,7 +272,13 @@ export async function healthCheck(): Promise<boolean> {
 
 export interface ActivityEvent {
   id: string;
-  type: "chat" | "upload" | "delete" | "quiz_complete" | "flashcard_session" | "summarize";
+  type:
+    | "chat"
+    | "upload"
+    | "delete"
+    | "quiz_complete"
+    | "flashcard_session"
+    | "summarize";
   timestamp: string;
   detail: string;
   docName?: string;
@@ -284,7 +290,12 @@ export interface DashboardStats {
   totalQuizzes: number;
   totalFlashcards: number;
   recentActivity: ActivityEvent[];
-  chartData: Array<{ day: string; questions: number; quizzes: number; flashcards: number }>;
+  chartData: Array<{
+    day: string;
+    questions: number;
+    quizzes: number;
+    flashcards: number;
+  }>;
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
@@ -294,11 +305,17 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   return response.json();
 }
 
-export async function submitQuizScore(quizId: number, score: number): Promise<any> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/quiz/${quizId}/score`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ score }),
-  });
+export async function submitQuizScore(
+  quizId: number,
+  score: number,
+): Promise<any> {
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}/quiz/${quizId}/score`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ score }),
+    },
+  );
   return response.json();
 }
