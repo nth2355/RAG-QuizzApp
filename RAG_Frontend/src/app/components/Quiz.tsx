@@ -1,23 +1,23 @@
 import {
-    AlertTriangle,
-    ArrowLeft,
-    ArrowRight,
-    BookOpen,
-    CheckCircle,
-    ChevronDown,
-    Download,
-    HelpCircle,
-    Loader2,
-    RefreshCw,
-    Sparkles,
-    Trophy,
-    XCircle
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  CheckCircle,
+  ChevronDown,
+  Download,
+  HelpCircle,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+  Trophy,
+  XCircle
 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import {
-    generateQuiz,
-    submitQuizScore,
-    QuizSet
+  generateQuiz,
+  submitQuizScore,
+  QuizSet
 } from "../services/api";
 import { useApp } from "../context/AppContext";
 import { trackQuizComplete } from "../services/activityTracker";
@@ -126,13 +126,13 @@ export function Quiz() {
       const finalScore = answers.filter(
         (a, i) => a === quizSet.items[i]?.correct_index
       ).length;
-      
+
       if (quizSet.id !== undefined && quizSet.id !== null) {
         submitQuizScore(quizSet.id, finalScore)
           .then(() => refreshStats())
           .catch((err) => console.error("Error submitting quiz score:", err));
       }
-      
+
       trackQuizComplete(
         finalScore,
         quizSet.items.length,
@@ -264,7 +264,7 @@ export function Quiz() {
               onChange={(e) => setSelectedDoc(e.target.value)}
               className="w-full bg-[#f8fafc] dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-2.5 py-2 text-xs outline-none"
             >
-              <option value="Tất cả tài liệu">📚 Tất cả tài liệu</option>
+              <option value="Tất cả tài liệu">📑Tất cả tài liệu</option>
               {documentsList.map((doc) => (
                 <option key={doc.document_id} value={doc.filename}>
                   📄 {doc.filename.replace(".pdf", "")}
@@ -466,8 +466,8 @@ export function Quiz() {
                         showResult && isCorrectOpt
                           ? "#10b981"
                           : showResult && isSelected && !isCorrect
-                          ? "#ef4444"
-                          : "var(--card)",
+                            ? "#ef4444"
+                            : "var(--card)",
                       border: `1.5px solid ${border}`,
                     }}
                   >
@@ -585,8 +585,8 @@ export function Quiz() {
                         ? "#10b981"
                         : "#ef4444"
                       : i === current
-                      ? "#6366f1"
-                      : "var(--border)",
+                        ? "#6366f1"
+                        : "var(--border)",
                 }}
               />
             ))}
@@ -658,8 +658,8 @@ export function Quiz() {
           {pct >= 80
             ? "Xuất sắc! 🏆"
             : pct >= 60
-            ? "Tốt! Cần ôn thêm 💪"
-            : "Cần học thêm 📚"}
+              ? "Tốt! Cần ôn thêm 💪"
+              : "Cần học thêm 📚"}
         </div>
       </div>
 

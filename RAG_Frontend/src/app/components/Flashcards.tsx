@@ -162,7 +162,7 @@ export function Flashcards() {
               onChange={(e) => setSelectedDoc(e.target.value)}
               className="w-full bg-[#f8fafc] dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-2.5 py-2 text-xs outline-none"
             >
-              <option value="Tất cả tài liệu">📚 Tất cả tài liệu</option>
+              <option value="Tất cả tài liệu">📑Tất cả tài liệu</option>
               {documentsList.map((doc) => (
                 <option key={doc.document_id} value={doc.filename}>
                   📄 {doc.filename.replace(".pdf", "")}

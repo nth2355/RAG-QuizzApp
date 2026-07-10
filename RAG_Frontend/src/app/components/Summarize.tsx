@@ -1,21 +1,21 @@
 import {
-    AlertTriangle,
-    AlignLeft,
-    BookMarked,
-    CheckCheck,
-    ChevronDown,
-    Copy,
-    Download,
-    FileText,
-    List,
-    Loader2,
-    RefreshCw,
-    Sparkles,
+  AlertTriangle,
+  AlignLeft,
+  BookMarked,
+  CheckCheck,
+  ChevronDown,
+  Copy,
+  Download,
+  FileText,
+  List,
+  Loader2,
+  RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
-    summarizeDocument,
-    Summary as SummaryResponse
+  summarizeDocument,
+  Summary as SummaryResponse
 } from "../services/api";
 import { useApp } from "../context/AppContext";
 import { trackSummarize } from "../services/activityTracker";
@@ -122,7 +122,7 @@ export function Summarize() {
             onChange={(e) => setSelectedDoc(e.target.value)}
             className="w-full bg-[#f8fafc] dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-2.5 py-2 text-xs outline-none"
           >
-            <option value="Tất cả tài liệu">📚 Tất cả tài liệu</option>
+            <option value="Tất cả tài liệu">📑Tất cả tài liệu</option>
             {documentsList.map((doc) => (
               <option key={doc.document_id} value={doc.filename}>
                 📄 {doc.filename.replace(".pdf", "")}
@@ -151,9 +151,8 @@ export function Summarize() {
                 key={l.value}
                 className="flex items-center justify-between rounded-xl px-3 py-2.5 cursor-pointer transition-all"
                 style={{
-                  border: `1.5px solid ${
-                    length === l.value ? "#6366f1" : "var(--border)"
-                  }`,
+                  border: `1.5px solid ${length === l.value ? "#6366f1" : "var(--border)"
+                    }`,
                   background:
                     length === l.value ? "#ede9fe" : "var(--muted)",
                 }}
@@ -216,9 +215,8 @@ export function Summarize() {
                   fontSize: 12,
                   background: focus === f ? "#6366f1" : "var(--muted)",
                   color: focus === f ? "#fff" : "var(--foreground)",
-                  border: `1px solid ${
-                    focus === f ? "#6366f1" : "var(--border)"
-                  }`,
+                  border: `1px solid ${focus === f ? "#6366f1" : "var(--border)"
+                    }`,
                   fontWeight: focus === f ? 500 : 400,
                 }}
               >

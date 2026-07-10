@@ -9,41 +9,23 @@ import { Login } from "./components/Login";
 import { Quiz } from "./components/Quiz";
 import { Register } from "./components/Register";
 import { Summarize } from "./components/Summarize";
-function ProtectedRoute({
-  children,
-  requiredRole,
-}: {
-  children: React.ReactNode;
-  requiredRole?: "teacher" | "student";
-}) {
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem("token");
-  const role = localStorage.getItem("role");
 
   if (!token) {
     return React.createElement(Navigate, { to: "/login", replace: true });
   }
-
-  if (requiredRole && role !== requiredRole) {
-    return React.createElement(Navigate, {
-      to: role === "teacher" ? "/dashboard" : "/quiz",
-      replace: true,
-    });
-  }
-
   return children;
 }
 
 function HomeRedirect() {
   const token = localStorage.getItem("token");
-  const role = localStorage.getItem("role");
 
   if (!token) {
     return React.createElement(Navigate, { to: "/login", replace: true });
   }
-  return React.createElement(Navigate, {
-    to: role === "teacher" ? "/dashboard" : "/quiz",
-    replace: true,
-  });
+  // All authenticated users (student and teacher) start at the Dashboard.
+  return React.createElement(Navigate, { to: "/dashboard", replace: true });
 }
 
 export const router = createBrowserRouter([
