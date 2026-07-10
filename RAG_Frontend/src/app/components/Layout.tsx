@@ -39,7 +39,7 @@ export function Layout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const pageTitle = pageTitles[location.pathname] ?? "RAG Quiz";
-  
+
   // 2. LẤY HÀM LOGOUT VÀ THÔNG TIN USER TỪ CONTEXT
   const { selectedDoc, setSelectedDoc, documentsList, logout, user } = useApp();
 
@@ -118,7 +118,7 @@ export function Layout() {
               onChange={(e) => setSelectedDoc(e.target.value)}
               className="w-full bg-[#1e293b] border border-slate-700 text-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none"
             >
-              <option value="Tất cả tài liệu">📚 Tất cả tài liệu</option>
+              <option value="Tất cả tài liệu">📑Tất cả tài liệu</option>
               {documentsList.map((doc) => (
                 <option key={doc.document_id} value={doc.filename}>
                   📄 {doc.filename.replace(".pdf", "")}
@@ -186,7 +186,7 @@ export function Layout() {
                 <User size={12} color="#fff" />
               </div>
               <span style={{ fontSize: 13, fontWeight: 500, color: "var(--foreground)" }}>
-                {user?.full_name || "Học viên"} 
+                {user?.full_name || "Học viên"}
                 <span className="text-[10px] ml-1 opacity-60 uppercase">({user?.role})</span>
               </span>
             </div>
