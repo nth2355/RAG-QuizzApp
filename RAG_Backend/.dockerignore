@@ -1,9 +1,17 @@
-.venv
-__pycache__
-.vscode
-.git
+venv/
+.venv/
 
+__pycache__/
 *.pyc
-*.pyo
 
-storage/qdrant
+.git
+.gitignore
+
+storage/
+data/
+
+.vscode/
+
+.env
+
+.cache/

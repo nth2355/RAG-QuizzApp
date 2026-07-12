@@ -65,10 +65,10 @@ export function Layout() {
           {sidebarOpen && (
             <div>
               <div className="text-white" style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.2 }}>
-                RAG Quiz
+                LearnSphere
               </div>
               <div style={{ fontSize: 11, color: "#64748b" }}>
-                AI Learning Platform
+                Personalized AI Learning
               </div>
             </div>
           )}
