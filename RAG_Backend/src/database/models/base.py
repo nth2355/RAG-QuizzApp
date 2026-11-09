@@ -14,6 +14,7 @@ class TimestampMixin:
 
 class BaseModel(Base, TimestampMixin):
     __abstract__ = True
+    __table_args__ = {"sqlite_autoincrement": True}
 
     id = Column(
         Integer,

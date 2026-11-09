@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer
+from sqlalchemy import Column, ForeignKey, Integer, JSON
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
@@ -21,7 +21,7 @@ class QuizHistory(BaseModel):
     )
 
     quiz_data = Column(
-        JSONB,
+        JSON().with_variant(JSONB(), "postgresql"),
         nullable=False
     )
 

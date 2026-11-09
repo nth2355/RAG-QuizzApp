@@ -51,7 +51,7 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => {
     const stored = sessionStorage.getItem("rag_chat_history");
-    return stored ? JSON.parse(stored) : [];
+    try { return stored ? JSON.parse(stored) : []; } catch { return []; }
   });
   const [stats, setStats] = useState<DashboardStats>({
     totalQuestions: 0,
@@ -89,12 +89,25 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
   };
 
   const logout = () => {
-    localStorage.clear();
-    sessionStorage.clear();
+    for (const key of ["token", "role", "full_name"]) localStorage.removeItem(key);
+    for (const key of ["rag_selected_doc", "rag_chat_history", "rag_quiz_session"]) sessionStorage.removeItem(key);
     setToken(null);
     setUser(null);
     window.location.href = "/login";
   };
+
+  useEffect(() => {
+    const expired = () => logout();
+    const storageChanged = (event: StorageEvent) => {
+      if (event.key === "token" && !event.newValue) logout();
+    };
+    window.addEventListener("auth-expired", expired);
+    window.addEventListener("storage", storageChanged);
+    return () => {
+      window.removeEventListener("auth-expired", expired);
+      window.removeEventListener("storage", storageChanged);
+    };
+  }, []);
 
   const setSelectedDoc = (doc: string) => {
     setSelectedDocState(doc);
@@ -111,7 +124,15 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
     setLoadingDocuments(true);
     try {
       const docs = await listDocuments();
-      setDocumentsList(docs);
+      const ready = docs.filter(d => !d.status || ["ready", "indexed"].includes(d.status));
+      setDocumentsList(ready);
+      setSelectedDocState(current => {
+        if (current !== "Tất cả tài liệu" && !ready.some(d => d.filename === current)) {
+          sessionStorage.setItem("rag_selected_doc", "Tất cả tài liệu");
+          return "Tất cả tài liệu";
+        }
+        return current;
+      });
     } catch (err) {
       console.error("Error refreshing documents in Context:", err);
     } finally {

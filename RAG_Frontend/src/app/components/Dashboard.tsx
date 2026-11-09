@@ -25,7 +25,6 @@ import {
 import { useApp } from "../context/AppContext";
 import { formatRelativeTime, type ActivityType } from "../services/activityTracker";
 
-// ── Icon + color map for activity types ──────────────────────────────────────
 const ACTIVITY_META: Record<
   ActivityType,
   { icon: React.ElementType; color: string; label: string }
@@ -46,7 +45,6 @@ const quickActions = [
   { to: "/flashcards", label: "Flashcard", desc: "Ôn tập chủ động", icon: CreditCard, color: "#ec4899" },
 ];
 
-// ── Stat card data ──────────────────────────────────────────────────────────
 function useStatCards(
   docsCount: number,
   totalQuestions: number,

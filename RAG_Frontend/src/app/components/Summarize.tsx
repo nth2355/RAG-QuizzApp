@@ -54,7 +54,9 @@ export function Summarize() {
     try {
       const result = await summarizeDocument({
         document: selectedDoc !== "Tất cả tài liệu" ? selectedDoc : undefined,
-        query: customPrompt || undefined,
+        instructions: customPrompt || undefined,
+        length: length as "short" | "medium" | "long",
+        focus,
       });
       setSummary(result);
       trackSummarize(selectedDoc !== "Tất cả tài liệu" ? selectedDoc : undefined);

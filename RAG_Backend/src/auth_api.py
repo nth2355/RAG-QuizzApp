@@ -1,6 +1,7 @@
 # File: RAG_Backend/src/auth_api.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from src.database.connection import get_db
 from src.database.models import User
 from src.auth_schemas import UserCreate, UserLogin, TokenResponse
@@ -25,7 +26,11 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     )
     
     db.add(new_user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Email này đã được đăng ký.") from exc
     db.refresh(new_user)
     return {"message": "Đăng ký tài khoản thành công!", "user_id": new_user.id}
 

@@ -20,12 +20,13 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         # Raise JWTError (not generic Exception) so it is caught by the handler below.
-        if user_id is None:
+        if user_id is None or not str(user_id).isdigit():
             raise JWTError("Token is missing 'sub' claim")
-    except JWTError:
+        user_id = int(user_id)
+    except (JWTError, ValueError, TypeError):
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    user = db.query(User).filter(User.id == user_id).first()
     # Guard against valid JWTs for deleted users.
     if user is None:
         raise credentials_exception

@@ -14,3 +14,9 @@ RAG_quizz/.env
 
 # dist
 RAG_Frontend/dist/
+.env.local
+**/.env.local
+**/.env.backup*
+RAG_Backend/storage/
+RAG_Backend/data/
+*.log

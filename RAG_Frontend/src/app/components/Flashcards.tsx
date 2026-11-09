@@ -19,6 +19,7 @@ import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import {
   FlashcardSet,
+  completeFlashcardSession,
   generateFlashcards
 } from "../services/api";
 import { useApp } from "../context/AppContext";
@@ -73,7 +74,8 @@ export function Flashcards() {
     setShowHint(false);
   };
 
-  const markCard = (status: "know" | "review") => {
+  const markCard = async (status: "know" | "review") => {
+    if (loading) return;
     const next = [...statuses];
     next[current] = status;
     setStatuses(next);
@@ -82,6 +84,18 @@ export function Flashcards() {
       setFlipped(false);
       setShowHint(false);
     } else {
+      if (flashcardSet?.id != null) {
+        setLoading(true);
+        setError(null);
+        try {
+          await completeFlashcardSession(flashcardSet.id);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Không lưu được phiên học.");
+          return;
+        } finally {
+          setLoading(false);
+        }
+      }
       // Track completed session
       trackFlashcardSession(
         cards.length,
@@ -199,10 +213,12 @@ export function Flashcards() {
 
   if (stage === "study") {
     const card = cards[current];
+    if (!card) return null;
     const topic = topicColors[card.topic] ?? { bg: "#ede9fe", color: "#6366f1" };
 
     return (
       <div className="p-6 flex flex-col items-center" style={{ minHeight: "calc(100vh - 60px)" }}>
+        {error && <p role="alert" className="mb-4 text-red-600">{error}</p>}
         {/* Stats bar */}
         <div className="flex items-center gap-6 mb-6 w-full max-w-xl">
           <div className="flex items-center gap-1.5">

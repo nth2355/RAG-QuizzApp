@@ -24,13 +24,14 @@ def ensure_collection(recreate=False, collection_name=None):
     client = get_qdrant_client()
     name = collection_name or settings.qdrant_collection
     if recreate and client.collection_exists(name):
-        client.delete_collection(name)     
+        client.delete_collection(name)
     if not client.collection_exists(name):
         client.create_collection(collection_name=name, vectors_config=qmodels.VectorParams(
-            size=1024, distance=qmodels.Distance.COSINE))
+            size=len(get_embedding_model().embed_query("dimension probe")), distance=qmodels.Distance.COSINE))
 @lru_cache(maxsize=4)
 def get_vector_store(collection_name=None):
     name = collection_name or settings.qdrant_collection
+    ensure_collection(collection_name=name)
     return QdrantVectorStore(client=get_qdrant_client(),collection_name=name,embedding=get_embedding_model()
     )
 def scroll_all(collection_name, scroll_filter=None):
@@ -47,14 +48,14 @@ def scroll_all(collection_name, scroll_filter=None):
         )
         if not res:
             break
-            
+
         valid_points = []
         for point in res:
             # Qdrant của LangChain lưu text trong trường "page_content" bên trong payload
             valid_points.append(point)
-            
+
         yield valid_points
-        
+
         if next_offset is None:
             break
         offset = next_offset
@@ -62,18 +63,18 @@ def scroll_all(collection_name, scroll_filter=None):
 def list_documents():
     client = get_qdrant_client()
     name = settings.qdrant_collection
-    
+
     if not client.collection_exists(name):
         return []
-        
+
     # Scroll lấy payload để gom nhóm các filename độc nhất
     res, _ = client.scroll(
         collection_name=name,
-        limit=10000, 
+        limit=10000,
         with_payload=True,
         with_vectors=False
     )
-    
+
     seen_docs = {}
     for point in res:
         payload = point.payload or {}
@@ -81,15 +82,15 @@ def list_documents():
         doc_id = meta.get("document_id")
         filename = meta.get("filename")
         source = meta.get("source")
-        
+
         if doc_id and doc_id not in seen_docs:
             seen_docs[doc_id] = {
                 "document_id": doc_id,
                 "filename": filename,
                 "source": source,
-                "size_bytes": None 
+                "size_bytes": None
             }
-            
+
     return list(seen_docs.values())
 
 @lru_cache(maxsize=1)
@@ -101,5 +102,5 @@ def get_reranker():
     model = AutoModelForSequenceClassification.from_pretrained(settings.reranker_model)
     model.to(device)
     model.eval()
-    
+
     return tokenizer, model

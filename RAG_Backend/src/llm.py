@@ -3,16 +3,15 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from functools import lru_cache
 from langchain_core.messages import HumanMessage
-import traceback
 
 def _build_hf_local():
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-    from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline 
-    
+    from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
+
     tokenizer = AutoTokenizer.from_pretrained(settings.hf_model)
     model = AutoModelForCausalLM.from_pretrained(settings.hf_model, dtype=torch.bfloat16)
-    
+
     text_gen = pipeline(
         task="text-generation",
         model=model,
@@ -20,9 +19,9 @@ def _build_hf_local():
         device=settings.hf_device,
         return_full_text=False,
     )
-    text_gen.generation_config.max_new_tokens = settings.hf_max_new_tokens 
+    text_gen.generation_config.max_new_tokens = settings.hf_max_new_tokens
     text_gen.generation_config.do_sample = settings.llm_temperature > 0
-    
+
     return ChatHuggingFace(llm=HuggingFacePipeline(pipeline=text_gen))
 
 def _build_gemini():
@@ -30,7 +29,7 @@ def _build_gemini():
     return ChatGoogleGenerativeAI(
         model=settings.gemini_model,
         temperature=settings.llm_temperature,
-        google_api_key=settings.google_api_key, 
+        google_api_key=settings.google_api_key,
     )
 
 def _build_vllm():
@@ -38,9 +37,9 @@ def _build_vllm():
         model=settings.hf_model,
         openai_api_key=settings.vllm_api_key,
         openai_api_base=settings.vllm_api_base,
-        temperature=settings.llm_temperature, 
+        temperature=settings.llm_temperature,
     )
-    
+
 @lru_cache(maxsize=3)
 def get_llm(provider=None):
 
@@ -67,7 +66,7 @@ def invoke_llm(prompt, provider=None):
     print("=" * 50)
 
     try:
-        response = get_llm().invoke(
+        response = get_llm(provider).invoke(
             [HumanMessage(content=prompt)]
         )
 
@@ -80,10 +79,8 @@ def invoke_llm(prompt, provider=None):
     except Exception as e:
         error_msg = str(e)
 
-        print("\n" + "=" * 50)
-        print("\nFULL TRACEBACK:")
-        traceback.print_exc()
-        print("=" * 50 + "\n")
+        # Provider exception strings may contain URLs or credentials.
+        print(f"LLM request failed: {type(e).__name__}")
 
         if "RESOURCE_EXHAUSTED" in error_msg:
             raise RuntimeError(
@@ -100,4 +97,4 @@ def invoke_llm(prompt, provider=None):
                 "Gemini API Key không hợp lệ hoặc đã hết hạn."
             )
 
-        raise RuntimeError(f"Lỗi Gemini: {error_msg}")
+        raise RuntimeError("Không thể gọi mô hình AI. Kiểm tra kết nối và cấu hình nhà cung cấp.") from e

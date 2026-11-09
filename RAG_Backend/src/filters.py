@@ -31,9 +31,9 @@ class MetadataFilter(BaseModel):
             self.document_id = self.document_id.strip() or None
         if isinstance(self.document_ids, list):
             self.document_ids = [d.strip() for d in self.document_ids if isinstance(d, str) and d.strip()] or None
-            
+
         return self
-    
+
 def _coerce_filter(filters):
     if filters is None:
         return None
@@ -43,7 +43,7 @@ def _coerce_filter(filters):
         return MetadataFilter(**filters)
     return None
 
-    
+
 def filters_to_dict(filters):
     f = _coerce_filter(filters)
     return None if f is None else f.model_dump(exclude_none =True) or None
@@ -52,17 +52,17 @@ def filter_to_qdrant(filters):
     flat = filters_to_dict(filters)
     if not flat:
         return None
-    
+
     conditions = []
     for field, value in flat.items():
         if field == "filenames" and isinstance(value, list):
             conditions.append(qmodels.FieldCondition(
-                
-            key="metadata.filename", match=qmodels.MatchValue(any=value)
+
+            key="metadata.filename", match=qmodels.MatchAny(any=value)
             ))
         elif field == "document_ids" and isinstance(value, list):
             conditions.append(qmodels.FieldCondition(
-                key="metadata.document_id", match=qmodels.MatchValue(any=value)
+                key="metadata.document_id", match=qmodels.MatchAny(any=value)
             ))
         elif isinstance(value, (str, int)):
             conditions.append(qmodels.FieldCondition(

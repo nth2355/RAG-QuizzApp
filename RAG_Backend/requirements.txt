@@ -1,3 +1,5 @@
+-c requirements-constraints.txt
+
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 httpx>=0.24.0
@@ -35,6 +37,5 @@ SQLAlchemy>=2.0.0 #SQL Toolkit, viết  database bằng class Python thay vì SQ
 passlib[bcrypt]>=1.7.4 #lưu mật khẩu an toàn khi đăng kí tài khoản
 bcrypt==4.0.1
 python-jose[cryptography]>=3.3.0 #Đăng nhập và xác thực người dùng
-python-multipart>=0.0.9 #Uploaf file hoặc nhận form từ HTML
 
 email-validator>=2.0.0

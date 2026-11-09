@@ -9,7 +9,7 @@ class ChunkMetadata(BaseModel):
     page: int
     chunk_id: str
     section: str | None = None
- 
+
 class RetrievedChunk(BaseModel):
     text: str
     score: float
@@ -42,7 +42,7 @@ class QuizItem(BaseModel):
     source_markers: list[str] = Field(default_factory=list)
     difficulty: str | None = None
     topic: str | None = None
-   
+
     @model_validator(mode="after")
     def _validate_correct_index(self) -> "QuizItem":
         if not 0 <= self.correct_index < len(self.options):
@@ -55,25 +55,27 @@ class QuizSet(BaseModel):
     items: list[QuizItem] = Field(default_factory=list)
     citations: list[Citation] = Field(default_factory=list)
     chunks: list[RetrievedChunk] = Field(default_factory=list)
-    
+
 class Flashcard(BaseModel):
     front: str
     back: str
     hint: str | None = None
     topic: str | None = None
-    source_markers: list[str] = Field(default_factory=list) 
+    source_markers: list[str] = Field(default_factory=list)
 class FlashcardSet(BaseModel):
     id: int | None = None
     scope: Literal["query", "document", "filter", "corpus"]
     target: str | None = None
     cards: list[Flashcard] = Field(default_factory=list)
     citations: list[Citation] = Field(default_factory=list)
-    chunks: list[RetrievedChunk] = Field(default_factory=list) 
+    chunks: list[RetrievedChunk] = Field(default_factory=list)
 class DocumentInfo(BaseModel):
+    status: str = "ready"
+    created_at: str | None = None
     document_id: str
     filename: str
     source: str | None = None
-    size_bytes: int | None = None 
+    size_bytes: int | None = None
 class UploadResponse(BaseModel):
     filename: str
     chunk_indexed: int

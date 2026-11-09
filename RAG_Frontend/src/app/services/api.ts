@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
 export interface Citation {
   source_index: number;
@@ -58,6 +58,8 @@ export interface FlashcardSet {
 }
 
 export interface DocumentInfo {
+  status?: "ready" | "indexed" | "processing" | "error" | "deleting";
+  created_at?: string | null;
   document_id: string;
   filename: string;
   source?: string | null;
@@ -92,44 +94,56 @@ interface FetchOptions extends RequestInit {
   timeout?: number;
 }
 
+export class ApiError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 async function fetchWithTimeout(
   url: string,
   options: FetchOptions = {},
-): Promise<Response> {
-  const { timeout = 30000, ...fetchOptions } = options;
-
+): Promise<{ json: () => Promise<any> }> {
+  const { timeout = 30000, signal, ...fetchOptions } = options;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-
+  let timedOut = false;
+  const abort = () => controller.abort(signal?.reason);
+  if (signal?.aborted) abort();
+  else signal?.addEventListener("abort", abort, { once: true });
+  const timeoutId = setTimeout(() => { timedOut = true; controller.abort(); }, timeout);
   const headers = new Headers(fetchOptions.headers || {});
   const token = localStorage.getItem("token");
-
-  if (token && !headers.has("Authorization")) {
+  const isAuthRequest = /\/auth\/(login|register)$/.test(url);
+  if (token && !isAuthRequest && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-
   try {
-    const response = await fetch(url, {
-      ...fetchOptions,
-      headers,
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
+    const response = await fetch(url, { ...fetchOptions, headers, signal: controller.signal });
+    // Read the complete body before clearing the timer.
+    const body = await response.text();
+    let data: any = null;
+    try { data = body ? JSON.parse(body) : null; } catch {
+      if (response.ok) throw new ApiError("Máy chủ trả về dữ liệu JSON không hợp lệ.", response.status);
+    }
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        errorData.detail || `HTTP ${response.status}: ${response.statusText}`,
-      );
+      if (response.status === 401 && token && !isAuthRequest) {
+        for (const key of ["token", "role", "full_name"]) localStorage.removeItem(key);
+        window.dispatchEvent(new Event("auth-expired"));
+      }
+      const detail = data?.detail;
+      const message = Array.isArray(detail)
+        ? detail.map((e: { loc?: string[]; msg?: string }) => `${e.loc?.join(".") || "Dữ liệu"}: ${e.msg || "Không hợp lệ"}`).join("; ")
+        : typeof detail === "string" ? detail : `HTTP ${response.status}: ${response.statusText}`;
+      throw new ApiError(message, response.status);
     }
-
-    return response;
+    return { json: async () => data };
   } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("Request timeout - server took too long to respond");
-    }
+    if (timedOut) throw new Error("Máy chủ xử lý quá lâu. Vui lòng kiểm tra trước khi thử lại.");
     throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    signal?.removeEventListener("abort", abort);
   }
 }
 
@@ -174,9 +188,9 @@ export async function uploadDocument(file: File): Promise<UploadResponse> {
   return response.json();
 }
 
-export async function deleteDocument(filename: string): Promise<any> {
+export async function deleteDocument(documentId: string): Promise<{ status: string; message: string }> {
   const response = await fetchWithTimeout(
-    `${API_BASE_URL}/documents/${encodeURIComponent(filename)}`,
+    `${API_BASE_URL}/document-ids/${encodeURIComponent(documentId)}`,
     {
       method: "DELETE",
     },
@@ -201,6 +215,9 @@ export async function askQuestion(request: AskRequest): Promise<RagAnswer> {
 }
 
 export interface SummarizeRequest {
+  length?: "short" | "medium" | "long";
+  focus?: string;
+  instructions?: string;
   document?: string;
   query?: string;
   filters?: { filename?: string };
@@ -220,6 +237,7 @@ export async function summarizeDocument(
 }
 
 export interface QuizRequest {
+  difficulty?: "easy" | "medium" | "hard";
   document?: string;
   query?: string;
   filters?: { filename?: string };
@@ -307,15 +325,20 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
 export async function submitQuizScore(
   quizId: number,
-  score: number,
-): Promise<any> {
+  answers: Array<number | null>,
+): Promise<{ status: string; score: number }> {
   const response = await fetchWithTimeout(
     `${API_BASE_URL}/quiz/${quizId}/score`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ score }),
+      body: JSON.stringify({ answers }),
     },
   );
+  return response.json();
+}
+
+export async function completeFlashcardSession(setId: number): Promise<{ status: string }> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/flashcards/${setId}/complete`, { method: "POST" });
   return response.json();
 }

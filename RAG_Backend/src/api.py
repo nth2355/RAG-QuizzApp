@@ -1,24 +1,25 @@
 from contextlib import asynccontextmanager
+from typing import Literal
+from .config import settings
 from pydantic import BaseModel, Field
 import gc
 import torch
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from .filters import MetadataFilter, filters_to_dict
+from .filters import MetadataFilter
 from .indexing import save_and_ingest_pdf
-from .rag import answer 
+from .rag import answer
 from .indexing import delete_document
-from .learning import summarize_learning, generate_quiz, generate_flashcards 
+from .learning import summarize_learning, generate_quiz, generate_flashcards
 from .schemas import (
-    RagAnswer, 
-    Summary, 
-    DocumentInfo,   
+    RagAnswer,
+    Summary,
+    DocumentInfo,
     UploadResponse,
     QuizSet,
     FlashcardSet
 )
-from .store import list_documents, get_embedding_model, get_qdrant_client, get_reranker
-import time
+from .store import get_embedding_model, get_qdrant_client, get_reranker
 from src.database.connection import engine, Base, get_db
 from src.auth.dependencies import get_current_user
 from src.database.models import User, Document, ChatHistory, QuizHistory, FlashcardHistory, SummaryHistory
@@ -30,12 +31,16 @@ class AskRequest(BaseModel):
     k: int | None = Field(default=None, ge=1, le=64)
     filters: MetadataFilter | None = None
 class SummarizeRequest(BaseModel):
+    length: Literal["short", "medium", "long"] = "medium"
+    focus: str = Field(default="Tổng quan", max_length=200)
+    instructions: str = Field(default="", max_length=2000)
     document: str | None = None
-    query: str | None = None 
+    query: str | None = None
     filters: MetadataFilter | None = None
     k: int | None = Field(default=None, ge=1, le=64)
 
 class QuizzRequest(BaseModel):
+    difficulty: Literal["easy", "medium", "hard"] = "medium"
     document: str | None = None
     query: str | None = None
     filters: MetadataFilter | None = None
@@ -48,126 +53,66 @@ class FlashcardsRequest(BaseModel):
     count: int | None = Field(default=None, ge=1, le=50)
     k: int | None = Field(default=None, ge=1, le=64)
 
-import gc
-import torch
-from contextlib import asynccontextmanager
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("\n" + "="*50)
-    print(" LOG: Bắt đầu quá trình kích hoạt Hệ thống RAG...")
-    print("="*50)
-    
-    #THEO DÕI KHỞI TẠO EMBEDDING ---
-    start_time = time.time()
-    print("[Bước 1/3] Đang nạp Embedding Model (GreenNode)...")
-    try:
+    Base.metadata.create_all(bind=engine)
+    get_qdrant_client()
+    if settings.preload_models:
         get_embedding_model()
-        print(f"    => THÀNH CÔNG! Thời gian nạp: {time.time() - start_time:.2f} giây.")
-    except Exception as e:
-        print(f"    LỖI nạp Embedding: {e}")
-
-    #THEO DÕI KHỞI TẠO RE-RANKER ---
-    start_time = time.time()
-    print("[Bước 2/3] Đang nạp Re-ranker Model (BGE-Reranker)...")
-    try:
         get_reranker()
-        print(f"    => THÀNH CÔNG! Thời gian nạp: {time.time() - start_time:.2f} giây.")
-    except Exception as e:
-        print(f"    LỖI nạp Re-ranker: {e}")
-
-    #THEO DÕI KẾT NỐI VECTOR DB ---
-    start_time = time.time()
-    print("[Bước 3/3] Đang kết nối tới Qdrant Vector DB...")
     try:
-        get_qdrant_client()
-        print(f"    => THÀNH CÔNG! Thời gian kết nối: {time.time() - start_time:.2f} giây.")
-    except Exception as e:
-        print(f"    LỖI kết nối Vector DB: {e}")
-        
-    print("="*50)
-    print(" LOG: Toàn bộ mô hình đã nạp xong! Hệ thống sẵn sàng tiếp nhận Request.")
-    print("="*50 + "\n")
-    
-    # Server dừng lại và chạy liên tục để nhận request
-    yield
-
-    #TẮT SERVER: GIẢI PHÓNG BỘ NHỚ (RAM/VRAM)
-    print("\n" + "="*50)
-    print(" LOG: Đang tiến hành đóng server và giải phóng bộ nhớ...")
-    print("="*50)
-    
-    try:
-        # 1. Xóa các biến toàn cục liên quan đến cache hoặc kết nối nếu cần
-        # 2. Thu gom rác dữ liệu thừa trong RAM
-        collected = gc.collect()
-        print(f" LOG: Trình thu gom rác (GC) đã giải phóng {collected} objects trong RAM.")
-        
-        # 3. Giải phóng bộ nhớ VRAM của GPU
+        yield
+    finally:
+        get_qdrant_client().close()
+        get_qdrant_client.cache_clear()
+        from .store import get_vector_store
+        get_vector_store.cache_clear()
+        engine.dispose()
+        gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-            torch.cuda.ipc_collect()
-            print(" LOG: Đã xóa toàn bộ CUDA Cache trong VRAM GPU.")
-            
-    except Exception as e:
-        print(f" LỖI KHI DỌN DẸP BỘ NHỚ: {e}")
-        
-    print("="*50)
-    print(" LOG: Đã đóng Server RAG an toàn!")
-    print("="*50 + "\n")
 
-# KHỞI TẠO FASTAPI APP VỚI LIFESPAN 
+# KHỞI TẠO FASTAPI APP VỚI LIFESPAN
 app = FastAPI(
     title="RAG Learning API",
     description="Generate Q&A, summarize, quizzes and flashcards over indexed PDFs",
     version="0.1.0",
-    lifespan=lifespan  
+    lifespan=lifespan
 )
 
-Base.metadata.create_all(bind=engine) 
-app.include_router(auth_router) 
+app.include_router(auth_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 def enforce_user_filters(req_filters: MetadataFilter | None, document: str | None, current_user_id: int, db: Session) -> MetadataFilter:
-    if req_filters is None:
-        req_filters = MetadataFilter()
-    
-    # Check if a specific document is requested
-    doc_name = document or (req_filters.filename if req_filters else None)
-    
+    f = req_filters.model_copy(deep=True) if req_filters else MetadataFilter()
+    query = db.query(Document).filter(Document.user_id == current_user_id, Document.status.in_(["ready", "indexed"]))
+    doc_name = document or f.filename
     if doc_name and doc_name != "Tất cả tài liệu":
-        # Find this specific document for the user
-        db_doc = db.query(Document).filter(
-            Document.user_id == current_user_id,
-            Document.original_filename == doc_name
-        ).first()
-        if not db_doc:
-            raise HTTPException(status_code=404, detail=f"Không tìm thấy tài liệu '{doc_name}'")
-        
-        # Clear original filename/filenames filter and target document_id
-        req_filters.filename = None
-        req_filters.filenames = None
-        req_filters.document_id = str(db_doc.id)
-        req_filters.document_ids = None
+        matches = query.filter(Document.original_filename == doc_name).all()
+        if not matches:
+            raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu sẵn sàng của bạn.")
+        if len(matches) > 1:
+            raise HTTPException(status_code=409, detail="Tên tài liệu bị trùng. Hãy đổi tên hoặc xóa bản trùng.")
+        allowed = [str(matches[0].id)]
     else:
-        # All documents: filter by user's document list
-        user_docs = db.query(Document).filter(Document.user_id == current_user_id).all()
-        if not user_docs:
-            # Return a filter that will match nothing
-            req_filters.document_id = "none"
-            req_filters.document_ids = None
-        else:
-            req_filters.document_id = None
-            req_filters.document_ids = [str(d.id) for d in user_docs]
-            
-    return req_filters
+        documents = query.all()
+        allowed = [str(d.id) for d in documents]
+        if f.filenames:
+            allowed = [str(d.id) for d in documents if d.original_filename in f.filenames]
+    requested = [f.document_id] if f.document_id else f.document_ids
+    if requested:
+        allowed = [doc_id for doc_id in allowed if doc_id in requested]
+    f.filename = f.filenames = None
+    f.document_id = allowed[0] if len(allowed) == 1 else ("none" if not allowed else None)
+    f.document_ids = allowed if len(allowed) > 1 else None
+    return f
 
 @app.get("/health")
 def health():
@@ -182,18 +127,22 @@ def documents(current_user: User = Depends(get_current_user), db: Session = Depe
             document_id=str(d.id),
             filename=d.original_filename,
             source=d.stored_filename,
+            status=d.status,
+            created_at=d.created_at.isoformat() + "Z" if d.created_at else None,
             size_bytes=(settings.data_dir / d.stored_filename).stat().st_size if (settings.data_dir / d.stored_filename).exists() else None
         )
         for d in docs
     ]
 
 @app.post("/upload", response_model=UploadResponse)
-async def upload(
+def upload(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    content = await file.read()
+    content = file.file.read(settings.max_upload_bytes + 1)
+    if len(content) > settings.max_upload_bytes:
+        raise HTTPException(status_code=413, detail="PDF vượt giới hạn dung lượng cho phép.")
     return save_and_ingest_pdf(file.filename or "", content, user_id=current_user.id, db=db)
 
 @app.post("/ask", response_model=RagAnswer)
@@ -204,13 +153,13 @@ def ask_endpoint(
 ):
     try:
         req.filters = enforce_user_filters(req.filters, None, current_user.id, db)
-        
+
         res = answer(
             question=req.question,
             k=req.k,
             filters=req.filters,
         )
-        
+
         # Save to ChatHistory
         resolved_doc_id = None
         if req.filters and req.filters.document_id:
@@ -218,7 +167,7 @@ def ask_endpoint(
                 resolved_doc_id = int(req.filters.document_id)
             except ValueError:
                 pass
-                
+
         chat_log = ChatHistory(
             user_id=current_user.id,
             document_id=resolved_doc_id,
@@ -227,12 +176,14 @@ def ask_endpoint(
         )
         db.add(chat_log)
         db.commit()
-        
+
         return res
 
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     except RuntimeError as e:
         raise HTTPException(
-            status_code=429,
+            status_code=503,
             detail=str(e)
         )
 
@@ -244,21 +195,24 @@ def summarize_endpoint(
 ):
     try:
         req.filters = enforce_user_filters(req.filters, req.document, current_user.id, db)
-        
+
         res = summarize_learning(
             document=None,
             query=req.query,
             filters=req.filters,
             k=req.k,
+            length=req.length,
+            focus=req.focus,
+            instructions=req.instructions,
         )
-        
+
         resolved_doc_id = None
         if req.filters and req.filters.document_id:
             try:
                 resolved_doc_id = int(req.filters.document_id)
             except ValueError:
                 pass
-                
+
         summary_log = SummaryHistory(
             user_id=current_user.id,
             document_id=resolved_doc_id,
@@ -266,13 +220,15 @@ def summarize_endpoint(
         )
         db.add(summary_log)
         db.commit()
-        
+
         return res
 
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     except RuntimeError as e:
         print("SUMMARY ERROR:", e)
         raise HTTPException(
-            status_code=429,
+            status_code=503,
             detail=str(e)
         )
 
@@ -284,24 +240,25 @@ def quiz_endpoint(
 ):
     try:
         req.filters = enforce_user_filters(req.filters, req.document, current_user.id, db)
-        
+
         res = generate_quiz(
             document=None,
             query=req.query,
             filters=req.filters,
             count=req.count,
             k=req.k,
+            difficulty=req.difficulty,
         )
-        
+
         resolved_doc_id = None
         if req.filters and req.filters.document_id:
             try:
                 resolved_doc_id = int(req.filters.document_id)
             except ValueError:
                 pass
-        
+
         items_data = [item.model_dump() for item in res.items]
-        
+
         quiz_log = QuizHistory(
             user_id=current_user.id,
             document_id=resolved_doc_id,
@@ -311,13 +268,15 @@ def quiz_endpoint(
         db.add(quiz_log)
         db.commit()
         db.refresh(quiz_log)
-        
+
         res.id = quiz_log.id
         return res
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     except RuntimeError as e:
         print("QUIZ ERROR:", str(e))
         raise HTTPException(
-            status_code=429,
+            status_code=503,
             detail=str(e)
         )
 
@@ -329,7 +288,7 @@ def flashcards_endpoint(
 ):
     try:
         req.filters = enforce_user_filters(req.filters, req.document, current_user.id, db)
-        
+
         res = generate_flashcards(
             document=None,
             query=req.query,
@@ -337,16 +296,16 @@ def flashcards_endpoint(
             count=req.count,
             k=req.k,
         )
-        
+
         resolved_doc_id = None
         if req.filters and req.filters.document_id:
             try:
                 resolved_doc_id = int(req.filters.document_id)
             except ValueError:
                 pass
-                
+
         cards_data = [card.model_dump() for card in res.cards]
-        
+
         fc_log = FlashcardHistory(
             user_id=current_user.id,
             document_id=resolved_doc_id,
@@ -355,16 +314,18 @@ def flashcards_endpoint(
         db.add(fc_log)
         db.commit()
         db.refresh(fc_log)
-        
+
         res.id = fc_log.id
         return res
 
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     except RuntimeError as e:
         raise HTTPException(
-            status_code=429,
+            status_code=503,
             detail=str(e)
         )
-    
+
 @app.delete("/documents/{filename}")
 def delete_document_endpoint(
     filename: str,
@@ -374,168 +335,101 @@ def delete_document_endpoint(
     try:
         res = delete_document(filename, user_id=current_user.id, db=db)
         return res
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Không thể xóa tài liệu. Có thể thử lại.") from e
+
+@app.delete("/document-ids/{document_id}")
+def delete_document_by_id(document_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return delete_document("", user_id=current_user.id, db=db, document_id=document_id)
 
 class ScoreSubmit(BaseModel):
-    score: int
+    answers: list[int | None] = Field(max_length=50)
 
 @app.post("/quiz/{quiz_id}/score")
-def submit_quiz_score(
-    quiz_id: int,
-    payload: ScoreSubmit,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    quiz = db.query(QuizHistory).filter(
-        QuizHistory.id == quiz_id,
-        QuizHistory.user_id == current_user.id
-    ).first()
+def submit_quiz_score(quiz_id: int, payload: ScoreSubmit, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    quiz = db.query(QuizHistory).filter(QuizHistory.id == quiz_id, QuizHistory.user_id == current_user.id).first()
     if not quiz:
-        raise HTTPException(status_code=404, detail="Không tìm thấy bài thi của bạn")
-    quiz.score = payload.score
+        raise HTTPException(status_code=404, detail="Không tìm thấy bài quiz của bạn.")
+    items = quiz.quiz_data.get("items", [])
+    if len(payload.answers) != len(items):
+        raise HTTPException(status_code=422, detail="Số câu trả lời không khớp bài quiz.")
+    for answer, item in zip(payload.answers, items):
+        if answer is not None and not 0 <= answer < len(item["options"]):
+            raise HTTPException(status_code=422, detail="Lựa chọn đáp án không hợp lệ.")
+    score = sum(a == item["correct_index"] for a, item in zip(payload.answers, items))
+    data = dict(quiz.quiz_data)
+    data.setdefault("completed_at", datetime.utcnow().isoformat() + "Z")
+    data["answers"] = payload.answers
+    quiz.quiz_data = data
+    quiz.score = score
     db.commit()
-    return {"status": "success", "message": f"Đã lưu kết quả bài quiz: {payload.score}"}
+    return {"status": "success", "score": score}
 
-from datetime import datetime, timedelta
+@app.post("/flashcards/{set_id}/complete")
+def complete_flashcards(set_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    session = db.query(FlashcardHistory).filter(FlashcardHistory.id == set_id, FlashcardHistory.user_id == current_user.id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bộ flashcard của bạn.")
+    data = dict(session.flashcards_data)
+    data.setdefault("completed_at", datetime.utcnow().isoformat() + "Z")
+    session.flashcards_data = data
+    db.commit()
+    return {"status": "success"}
+
+from datetime import datetime, timedelta, timezone
 
 @app.get("/stats")
-def get_dashboard_stats(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    # 1. Counts
-    total_questions = db.query(ChatHistory).filter(ChatHistory.user_id == current_user.id).count()
-    total_quizzes = db.query(QuizHistory).filter(
-        QuizHistory.user_id == current_user.id,
-        QuizHistory.score.isnot(None)
-    ).count()
-    
-    total_flashcards = 0
-    fcs = db.query(FlashcardHistory).filter(FlashcardHistory.user_id == current_user.id).all()
-    for f in fcs:
-        cards = f.flashcards_data.get("cards", []) if isinstance(f.flashcards_data, dict) else []
-        total_flashcards += len(cards)
-
-    # 2. Activity Feed
-    recent_activity = []
-    
-    user_docs = db.query(Document).filter(Document.user_id == current_user.id).all()
-    doc_map = {d.id: d.original_filename for d in user_docs}
-
-    # Query uploads
-    for d in user_docs:
-        recent_activity.append({
-            "id": f"upload-{d.id}",
-            "type": "upload",
-            "timestamp": d.created_at.isoformat() + "Z" if hasattr(d, "created_at") and d.created_at else datetime.now().isoformat() + "Z",
-            "detail": f"Upload tài liệu: {d.original_filename}",
-            "docName": d.original_filename
-        })
-        
-    # Query chats
-    chats = db.query(ChatHistory).filter(ChatHistory.user_id == current_user.id).order_by(ChatHistory.id.desc()).limit(20).all()
+def get_dashboard_stats(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    vn = timezone(timedelta(hours=7))
+    docs = db.query(Document).filter(Document.user_id == current_user.id).all()
+    doc_map = {d.id: d.original_filename for d in docs}
+    chats = db.query(ChatHistory).filter(ChatHistory.user_id == current_user.id).all()
+    summaries = db.query(SummaryHistory).filter(SummaryHistory.user_id == current_user.id).all()
+    quizzes = db.query(QuizHistory).filter(QuizHistory.user_id == current_user.id, QuizHistory.score.isnot(None)).all()
+    flashcards = db.query(FlashcardHistory).filter(FlashcardHistory.user_id == current_user.id).all()
+    events = []
+    def timestamp(value):
+        if isinstance(value, str):
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+    def add(kind, row, detail, when=None, amount=1):
+        event = {
+            "id": f"{kind}-{row.id}", "type": kind,
+            "timestamp": timestamp(when or row.created_at).isoformat().replace("+00:00", "Z"),
+            "detail": detail, "docName": doc_map.get(getattr(row, "document_id", row.id if kind == "upload" else None)),
+        }
+        events.append((event, amount))
+    for d in docs:
+        add("upload", d, f"Upload tài liệu: {d.original_filename}")
     for c in chats:
-        doc_name = doc_map.get(c.document_id)
-        recent_activity.append({
-            "id": f"chat-{c.id}",
-            "type": "chat",
-            "timestamp": c.created_at.isoformat() + "Z" if c.created_at else datetime.now().isoformat() + "Z",
-            "detail": f"Chat với AI: {c.question[:40]}...",
-            "docName": doc_name
-        })
-
-    # Query summaries
-    summaries = db.query(SummaryHistory).filter(SummaryHistory.user_id == current_user.id).order_by(SummaryHistory.id.desc()).limit(20).all()
-    for s in summaries:
-        doc_name = doc_map.get(s.document_id)
-        recent_activity.append({
-            "id": f"summary-{s.id}",
-            "type": "summarize",
-            "timestamp": s.created_at.isoformat() + "Z" if s.created_at else datetime.now().isoformat() + "Z",
-            "detail": "Tóm tắt tài liệu",
-            "docName": doc_name
-        })
-
-    # Query quizzes
-    quizzes = db.query(QuizHistory).filter(
-        QuizHistory.user_id == current_user.id,
-        QuizHistory.score.isnot(None)
-    ).order_by(QuizHistory.id.desc()).limit(20).all()
+        add("chat", c, f"Chat với AI: {c.question[:40]}")
+    for row in summaries:
+        add("summarize", row, "Tóm tắt tài liệu")
     for q in quizzes:
-        doc_name = doc_map.get(q.document_id)
-        total_items = len(q.quiz_data.get("items", [])) if isinstance(q.quiz_data, dict) else 0
-        recent_activity.append({
-            "id": f"quiz-{q.id}",
-            "type": "quiz_complete",
-            "timestamp": q.created_at.isoformat() + "Z" if q.created_at else datetime.now().isoformat() + "Z",
-            "detail": f"Hoàn thành quiz — {q.score}/{total_items} câu đúng",
-            "docName": doc_name
-        })
-
-    # Query flashcards
-    flashcards = db.query(FlashcardHistory).filter(FlashcardHistory.user_id == current_user.id).order_by(FlashcardHistory.id.desc()).limit(20).all()
+        count = len(q.quiz_data.get("items", []))
+        add("quiz_complete", q, f"Hoàn thành quiz — {q.score}/{count} câu đúng", q.quiz_data.get("completed_at"))
+    total_flashcards = 0
     for f in flashcards:
-        doc_name = doc_map.get(f.document_id)
-        cards_count = len(f.flashcards_data.get("cards", [])) if isinstance(f.flashcards_data, dict) else 0
-        recent_activity.append({
-            "id": f"fc-{f.id}",
-            "type": "flashcard_session",
-            "timestamp": f.created_at.isoformat() + "Z" if f.created_at else datetime.now().isoformat() + "Z",
-            "detail": f"Ôn {cards_count} flashcard",
-            "docName": doc_name
-        })
-
-    recent_activity.sort(key=lambda x: x["timestamp"], reverse=True)
-    recent_activity = recent_activity[:30]
-
-    # 3. Chart Data for the last 7 days
-    VN_DAYS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"]
-    chart_data = []
-    
-    today_dt = datetime.now()
-    for i in range(6, -1, -1):
-        day_date = today_dt - timedelta(days=i)
-        weekday_idx = (day_date.weekday() + 1) % 7
-        day_label = VN_DAYS[weekday_idx]
-        
-        start_of_day = datetime(day_date.year, day_date.month, day_date.day, 0, 0, 0)
-        end_of_day = datetime(day_date.year, day_date.month, day_date.day, 23, 59, 59)
-        
-        questions_count = db.query(ChatHistory).filter(
-            ChatHistory.user_id == current_user.id,
-            ChatHistory.created_at >= start_of_day,
-            ChatHistory.created_at <= end_of_day
-        ).count()
-        
-        quizzes_count = db.query(QuizHistory).filter(
-            QuizHistory.user_id == current_user.id,
-            QuizHistory.score.isnot(None),
-            QuizHistory.created_at >= start_of_day,
-            QuizHistory.created_at <= end_of_day
-        ).count()
-        
-        flashcards_count = 0
-        day_fcs = db.query(FlashcardHistory).filter(
-            FlashcardHistory.user_id == current_user.id,
-            FlashcardHistory.created_at >= start_of_day,
-            FlashcardHistory.created_at <= end_of_day
-        ).all()
-        for f in day_fcs:
-            cards = f.flashcards_data.get("cards", []) if isinstance(f.flashcards_data, dict) else []
-            flashcards_count += len(cards)
-
-        chart_data.append({
-            "day": day_label,
-            "questions": questions_count,
-            "quizzes": quizzes_count,
-            "flashcards": flashcards_count
-        })
-
-    return {
-        "totalQuestions": total_questions,
-        "totalQuizzes": total_quizzes,
-        "totalFlashcards": total_flashcards,
-        "recentActivity": recent_activity,
-        "chartData": chart_data
-    }
+        data = f.flashcards_data
+        if not data.get("completed_at"):
+            continue
+        count = len(data.get("cards", []))
+        total_flashcards += count
+        add("flashcard_session", f, f"Ôn {count} flashcard", data["completed_at"], count)
+    today = datetime.now(vn).date()
+    labels = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"]
+    chart = []
+    for offset in range(6, -1, -1):
+        day = today - timedelta(days=offset)
+        entry = {"day": labels[day.weekday()], "questions": 0, "quizzes": 0, "flashcards": 0}
+        for event, amount in events:
+            key = {"chat": "questions", "quiz_complete": "quizzes", "flashcard_session": "flashcards"}.get(event["type"])
+            if key and timestamp(event["timestamp"]).astimezone(vn).date() == day:
+                entry[key] += amount
+        chart.append(entry)
+    recent = sorted((event for event, _ in events), key=lambda e: e["timestamp"], reverse=True)[:30]
+    return {"totalQuestions": len(chats), "totalQuizzes": len(quizzes), "totalFlashcards": total_flashcards, "recentActivity": recent, "chartData": chart}

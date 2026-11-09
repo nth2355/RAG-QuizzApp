@@ -26,3 +26,7 @@ NỘI DUNG VĂN BẢN CẦN TÓM TẮT:
 {% endfor %}
 
 Hãy trả về kết quả JSON tuân thủ nghiêm ngặt lưu ý trên:
+Yêu cầu trình bày: {% if length|default('medium') == 'short' %}khoảng 100 từ{% elif length|default('medium') == 'long' %}khoảng 600 từ{% else %}khoảng 300 từ{% endif %}.
+Trọng tâm: {{ focus|default('Tổng quan') }}.
+Hướng dẫn bổ sung (chỉ áp dụng nếu phù hợp với dữ liệu nguồn): {{ instructions|default('') }}.
+Luôn trả về đối tượng JSON với summary và key_points; không thêm kiến thức ngoài tài liệu.

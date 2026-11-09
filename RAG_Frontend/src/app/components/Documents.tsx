@@ -80,8 +80,8 @@ export function Documents() {
           ? `${(doc.size_bytes / 1024 / 1024).toFixed(1)} MB`
           : "Unknown",
         displayPages: 0,
-        uploadedAt: new Date().toLocaleDateString("vi-VN"),
-        status: "ready" as const,
+        uploadedAt: doc.created_at ? new Date(doc.created_at).toLocaleDateString("vi-VN") : "—",
+        status: doc.status === "indexed" ? "ready" : doc.status === "deleting" ? "processing" : (doc.status || "ready"),
       }));
       setDocs(docs);
       refreshDocuments();
@@ -141,7 +141,7 @@ export function Documents() {
     if (!docToDelete) return;
 
     try {
-      await deleteDocument(docToDelete.filename);
+      await deleteDocument(docToDelete.document_id);
       trackDelete(docToDelete.filename);
       refreshStats();
       await loadDocuments();

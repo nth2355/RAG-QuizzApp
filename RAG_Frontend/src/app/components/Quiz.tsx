@@ -92,6 +92,7 @@ export function Quiz() {
       const result = await generateQuiz({
         document: selectedDoc !== "Tất cả tài liệu" ? selectedDoc : undefined,
         count: numQuestions,
+        difficulty: difficulty as "easy" | "medium" | "hard",
       });
       setQuizSet(result);
       setAnswers(new Array(result.items.length).fill(null));
@@ -116,8 +117,8 @@ export function Quiz() {
     setShowExplanation(true);
   };
 
-  const goNext = () => {
-    if (!quizSet) return;
+  const goNext = async () => {
+    if (!quizSet || loading) return;
     if (current < quizSet.items.length - 1) {
       setCurrent(current + 1);
       setShowExplanation(answers[current + 1] !== null);
@@ -128,9 +129,16 @@ export function Quiz() {
       ).length;
 
       if (quizSet.id !== undefined && quizSet.id !== null) {
-        submitQuizScore(quizSet.id, finalScore)
-          .then(() => refreshStats())
-          .catch((err) => console.error("Error submitting quiz score:", err));
+        setLoading(true);
+        setError(null);
+        try {
+          await submitQuizScore(quizSet.id, answers);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Không lưu được điểm quiz. Hãy thử lại.");
+          return;
+        } finally {
+          setLoading(false);
+        }
       }
 
       trackQuizComplete(
@@ -361,6 +369,7 @@ export function Quiz() {
 
     return (
       <div className="p-6 max-w-2xl mx-auto pt-8">
+        {error && <p role="alert" className="mb-4 text-red-600">{error}</p>}
         {/* Progress */}
         <div className="flex items-center gap-3 mb-6">
           <span
@@ -593,7 +602,7 @@ export function Quiz() {
           </div>
           <button
             onClick={goNext}
-            disabled={userAnswer === null}
+            disabled={userAnswer === null || loading}
             className="flex items-center gap-2 rounded-xl px-4 py-2.5 transition-colors"
             style={{
               background: userAnswer !== null ? "var(--primary)" : "var(--muted)",

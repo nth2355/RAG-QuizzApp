@@ -1,14 +1,14 @@
 import React from "react";
 import { createBrowserRouter, Navigate } from "react-router";
-import { Chat } from "./components/Chat";
-import { Dashboard } from "./components/Dashboard";
-import { Documents } from "./components/Documents";
-import { Flashcards } from "./components/Flashcards";
-import { Layout } from "./components/Layout";
-import { Login } from "./components/Login";
-import { Quiz } from "./components/Quiz";
-import { Register } from "./components/Register";
-import { Summarize } from "./components/Summarize";
+const Chat = React.lazy(() => import("./components/Chat").then(module => ({ default: module.Chat })));
+const Dashboard = React.lazy(() => import("./components/Dashboard").then(module => ({ default: module.Dashboard })));
+const Documents = React.lazy(() => import("./components/Documents").then(module => ({ default: module.Documents })));
+const Flashcards = React.lazy(() => import("./components/Flashcards").then(module => ({ default: module.Flashcards })));
+const Layout = React.lazy(() => import("./components/Layout").then(module => ({ default: module.Layout })));
+const Login = React.lazy(() => import("./components/Login").then(module => ({ default: module.Login })));
+const Quiz = React.lazy(() => import("./components/Quiz").then(module => ({ default: module.Quiz })));
+const Register = React.lazy(() => import("./components/Register").then(module => ({ default: module.Register })));
+const Summarize = React.lazy(() => import("./components/Summarize").then(module => ({ default: module.Summarize })));
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem("token");
 
