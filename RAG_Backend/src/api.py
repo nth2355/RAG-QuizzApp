@@ -6,6 +6,7 @@ import gc
 import torch
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from .filters import MetadataFilter
 from .indexing import save_and_ingest_pdf
 from .rag import answer
@@ -144,6 +145,21 @@ def upload(
     if len(content) > settings.max_upload_bytes:
         raise HTTPException(status_code=413, detail="PDF vượt giới hạn dung lượng cho phép.")
     return save_and_ingest_pdf(file.filename or "", content, user_id=current_user.id, db=db)
+
+@app.get("/document-ids/{document_id}/file")
+def document_file(document_id: int, download: bool = False, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    document = db.query(Document).filter(Document.id == document_id, Document.user_id == current_user.id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu của bạn.")
+    root = settings.data_dir.resolve()
+    path = (root / document.stored_filename).resolve()
+    if not path.is_relative_to(root) or not path.is_file():
+        raise HTTPException(status_code=404, detail="Tệp PDF không còn tồn tại.")
+    return FileResponse(
+        path, media_type="application/pdf", filename=document.original_filename,
+        content_disposition_type="attachment" if download else "inline",
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
 
 @app.post("/ask", response_model=RagAnswer)
 def ask_endpoint(

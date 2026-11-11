@@ -1,3 +1,4 @@
+import { ExportResults } from "./ExportResults";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -5,7 +6,6 @@ import {
   BookOpen,
   CheckCircle,
   ChevronDown,
-  Download,
   HelpCircle,
   Loader2,
   RefreshCw,
@@ -21,6 +21,7 @@ import {
 } from "../services/api";
 import { useApp } from "../context/AppContext";
 import { trackQuizComplete } from "../services/activityTracker";
+import { CitationLink } from "./CitationLink";
 
 
 const DIFFICULTIES = [
@@ -552,15 +553,11 @@ export function Quiz() {
                 >
                   {q.explanation}
                 </p>
-                {q.source_markers && q.source_markers.length > 0 && (
-                  <div className="flex items-center gap-1.5 mt-3">
-                    <BookOpen size={12} color="#6366f1" />
-                    <span style={{ fontSize: 11, color: "#6366f1" }}>
-                      {q.source_markers[0].filename} · trang{" "}
-                      {q.source_markers[0].page}
-                    </span>
-                  </div>
-                )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {quizSet?.citations.filter(c => q.source_markers.includes(c.source_marker)).map(c => (
+                    <CitationLink key={c.source_marker} citation={c} />
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -710,12 +707,7 @@ export function Quiz() {
         >
           <RefreshCw size={15} /> Tạo quiz mới
         </button>
-        <button
-          className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 transition-colors"
-          style={{ background: "var(--primary)", color: "#fff", fontSize: 14, fontWeight: 500 }}
-        >
-          <Download size={15} /> Xuất kết quả
-        </button>
+        {quizSet && <ExportResults result={{ kind: "quiz", data: quizSet, answers }} />}
       </div>
     </div>
   );

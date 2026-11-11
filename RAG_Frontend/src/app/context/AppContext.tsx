@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { DocumentInfo, listDocuments, getDashboardStats, DashboardStats, ActivityEvent } from "../services/api";
 
 export interface Citation {
+  document_id?: string | null;
   source_marker: string;
   filename: string;
   page: number;

@@ -120,6 +120,24 @@ class LocalIntegrationTests(unittest.TestCase):
         self.assertIsNone(failed["size_bytes"])
         self.assertEqual(self.client.delete(f"/document-ids/{failed['document_id']}", headers=self.headers[0]).status_code, 200)
 
+    def test_pdf_view_download_and_access_control(self):
+        doc = self.upload("Tài liệu học.pdf")
+        path = f"/document-ids/{doc['document_id']}/file"
+        self.assertEqual(self.client.get(path).status_code, 401)
+        self.assertEqual(self.client.get(path, headers=self.headers[1]).status_code, 404)
+        for download, disposition in [(False, "inline"), (True, "attachment")]:
+            response = self.client.get(path, params={"download": download}, headers=self.headers[0])
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(response.content, b"%PDF-1.4\nfixture")
+            self.assertEqual(response.headers["content-type"], "application/pdf")
+            self.assertTrue(response.headers["content-disposition"].startswith(disposition))
+            self.assertIn("filename*=utf-8''", response.headers["content-disposition"])
+            self.assertEqual(response.headers["cache-control"], "no-store")
+        with SessionLocal() as db:
+            row = db.get(Document, int(doc["document_id"]))
+            (settings.data_dir / row.stored_filename).unlink()
+        self.assertEqual(self.client.get(path, headers=self.headers[0]).status_code, 404)
+
     def test_quiz_default_difficulty_scoring_and_cache_copy(self):
         self.upload("quiz.pdf")
         payload = {"items": [{"question": "What is converted?", "options": ["Light", "Stone", "Sand", "Metal"], "correct_index": 0, "explanation": "The document says light.", "source_markers": ["S1"]}]}
@@ -140,10 +158,15 @@ class LocalIntegrationTests(unittest.TestCase):
         self.assertEqual(response.json()["score"], 1)
 
     def test_summary_options_and_flashcard_completion(self):
-        self.upload("learning.pdf")
+        document = self.upload("learning.pdf")
         with patch("src.learning.invoke_llm", return_value='{"summary":"Light becomes energy.","key_points":["Light"]}') as llm:
             response = self.client.post("/summarize", headers=self.headers[0], json={"document": "learning.pdf", "length": "long", "focus": "Energy", "instructions": "Use simple words"})
             self.assertEqual(response.status_code, 200, response.text)
+            citation = response.json()["citations"][0]
+            self.assertEqual(citation["document_id"], document["document_id"])
+            self.assertEqual(citation["page"], 1)
+            source = self.client.get(f"/document-ids/{citation['document_id']}/file", headers=self.headers[0])
+            self.assertEqual(source.status_code, 200)
             prompt = llm.call_args.args[0]
             for phrase in ["600", "Energy", "Use simple words"]:
                 self.assertIn(phrase, prompt)

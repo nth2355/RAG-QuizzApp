@@ -19,6 +19,7 @@ import {
   listDocuments,
   uploadDocument,
   deleteDocument,
+  getDocumentPdf,
   DocumentInfo,
 } from "../services/api";
 import { useApp } from "../context/AppContext";
@@ -55,13 +56,65 @@ export function Documents() {
   const [docs, setDocs] = useState<Document[]>([]);
   const [search, setSearch] = useState("");
   const [dragging, setDragging] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteTargets, setDeleteTargets] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
+  const deleteInProgress = useRef(false);
+  const [deleteProgress, setDeleteProgress] = useState(0);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<{ url: string; filename: string } | null>(null);
+  const [fileBusy, setFileBusy] = useState<string | null>(null);
+  const fileRequest = useRef(false);
+  const fileAbort = useRef(false);
+
+  useEffect(() => {
+    fileAbort.current = false;
+    return () => { fileAbort.current = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!preview) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPreview(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      URL.revokeObjectURL(preview.url);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [preview]);
+
+  const openPdf = async (doc: Document, download = false) => {
+    if (fileRequest.current) return;
+    fileRequest.current = true;
+    setFileBusy(doc.document_id);
+    setError(null);
+    try {
+      const blob = await getDocumentPdf(doc.document_id, download);
+      if (fileAbort.current) return;
+      const url = URL.createObjectURL(blob);
+      if (download) {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = doc.filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } else {
+        setPreview({ url, filename: doc.filename });
+      }
+    } catch (err) {
+      if (!fileAbort.current) setError(err instanceof Error ? err.message : "Không thể mở tệp PDF.");
+    } finally {
+      fileRequest.current = false;
+      if (!fileAbort.current) setFileBusy(null);
+    }
+  };
 
   // Load documents on mount
   useEffect(() => {
@@ -111,7 +164,7 @@ export function Documents() {
   };
 
   const addFiles = async (files: File[]) => {
-    if (files.length === 0) return;
+    if (files.length === 0 || uploading || deleteInProgress.current) return;
 
     setUploading(true);
     setUploadError(null);
@@ -136,23 +189,35 @@ export function Documents() {
     setUploading(false);
   };
 
-  const handleDelete = async (id: string) => {
-    const docToDelete = docs.find((d) => d.document_id === id);
-    if (!docToDelete) return;
-
+  const handleDelete = async () => {
+    if (deleteInProgress.current || uploading || deleteTargets.length === 0) return;
+    deleteInProgress.current = true;
+    setDeleting(true);
+    setDeleteProgress(0);
+    setError(null);
+    const targets = docs.filter(d => deleteTargets.includes(d.document_id));
+    const failures: string[] = [];
     try {
-      await deleteDocument(docToDelete.document_id);
-      trackDelete(docToDelete.filename);
+      // Delete sequentially to avoid concurrent writes to local vector storage.
+      for (const [index, doc] of targets.entries()) {
+        try {
+          await deleteDocument(doc.document_id);
+          setDocs(prev => prev.filter(d => d.document_id !== doc.document_id));
+          trackDelete(doc.filename);
+        } catch (err) {
+          failures.push(`${doc.filename}: ${err instanceof Error ? err.message : "Không thể xóa tài liệu"}`);
+        }
+        setDeleteProgress(index + 1);
+      }
+      await refreshDocuments();
       refreshStats();
-      await loadDocuments();
-      setDeleteTarget(null);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to delete document"
-      );
-      console.error("Error deleting document:", err);
+      if (failures.length) {
+        setError(`Đã xóa ${targets.length - failures.length}/${targets.length} tài liệu. Không xóa được ${failures.length} tài liệu: ${failures.join("; ")}`);
+      }
+    } finally {
+      setDeleteTargets([]);
+      setDeleting(false);
+      deleteInProgress.current = false;
     }
   };
 
@@ -222,7 +287,7 @@ export function Documents() {
         </div>
         <button
           onClick={() => fileRef.current?.click()}
-          disabled={uploading}
+          disabled={uploading || deleting}
           className="flex items-center gap-2 rounded-xl px-4 py-2 transition-all"
           style={{
             background: uploading ? "var(--muted)" : "var(--primary)",
@@ -239,7 +304,7 @@ export function Documents() {
           type="file"
           accept=".pdf"
           multiple
-          disabled={uploading}
+          disabled={uploading || deleting}
           className="hidden"
           onChange={(e) => addFiles(Array.from(e.target.files ?? []))}
         />
@@ -259,7 +324,7 @@ export function Documents() {
           border: `2px dashed ${dragging ? "#6366f1" : "var(--border)"}`,
           background: dragging ? "#ede9fe" : "var(--card)",
           padding: "36px 24px",
-          pointerEvents: uploading ? "none" : "auto",
+          pointerEvents: uploading || deleting ? "none" : "auto",
           opacity: uploading ? 0.6 : 1,
         }}
       >
@@ -322,20 +387,15 @@ export function Documents() {
             {selectedCount} tài liệu được chọn
           </span>
           <button
-            onClick={() => {
-              const selectedIds = docs
-                .filter((d) => d.selected)
-                .map((d) => d.document_id);
-              setDocs((prev) =>
-                prev.filter((d) => !selectedIds.includes(d.document_id))
-              );
-            }}
+            onClick={() => setDeleteTargets(docs.filter(d => d.selected).map(d => d.document_id))}
+            disabled={uploading || deleting || loading}
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-colors"
             style={{ background: "#ef4444", color: "#fff", fontSize: 13 }}
           >
             <Trash2 size={13} /> Xóa đã chọn
           </button>
           <button
+            disabled={deleting}
             onClick={() => setDocs((prev) => prev.map((d) => ({ ...d, selected: false })))}
             style={{ fontSize: 13, color: "#6366f1", marginLeft: "auto" }}
           >
@@ -380,9 +440,12 @@ export function Documents() {
                   >
                     <input
                       type="checkbox"
+                      aria-label="Chọn tất cả tài liệu đang hiển thị"
+                      disabled={deleting || filtered.length === 0}
+                      checked={filtered.length > 0 && filtered.every(d => d.selected)}
                       onChange={(e) =>
                         setDocs((prev) =>
-                          prev.map((d) => ({ ...d, selected: e.target.checked }))
+                          prev.map((d) => filtered.some(f => f.document_id === d.document_id) ? { ...d, selected: e.target.checked } : d)
                         )
                       }
                     />
@@ -458,6 +521,8 @@ export function Documents() {
                     <td style={{ padding: "12px 16px" }}>
                       <input
                         type="checkbox"
+                        aria-label={`Chọn ${doc.filename}`}
+                        disabled={deleting}
                         checked={doc.selected}
                         onChange={() => toggleSelect(doc.document_id)}
                       />
@@ -520,19 +585,24 @@ export function Documents() {
                     <td style={{ padding: "12px 16px" }}>
                       <div className="flex items-center justify-end gap-1">
                         <button
+                          onClick={() => openPdf(doc)}
+                          disabled={fileBusy !== null || deleting}
                           className="p-1.5 rounded-lg transition-colors hover:bg-muted"
                           title="Xem"
                         >
                           <Eye size={15} color="var(--muted-foreground)" />
                         </button>
                         <button
+                          onClick={() => openPdf(doc, true)}
+                          disabled={fileBusy !== null || deleting}
                           className="p-1.5 rounded-lg transition-colors hover:bg-muted"
                           title="Tải xuống"
                         >
                           <Download size={15} color="var(--muted-foreground)" />
                         </button>
                         <button
-                          onClick={() => setDeleteTarget(doc.document_id)}
+                          onClick={() => setDeleteTargets([doc.document_id])}
+                          disabled={uploading || deleting}
                           className="p-1.5 rounded-lg transition-colors hover:bg-red-50"
                           title="Xóa"
                         >
@@ -565,15 +635,33 @@ export function Documents() {
         </>
       )}
 
+      {fileBusy && <p role="status" className="mt-3 text-sm">Đang tải PDF...</p>}
+      {preview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setPreview(null)}>
+          <div role="dialog" aria-modal="true" aria-label={`Xem ${preview.filename}`} className="flex h-[90vh] w-full max-w-6xl flex-col rounded-xl overflow-hidden" style={{ background: "var(--card)" }} onClick={event => event.stopPropagation()}>
+            <div className="flex items-center justify-between gap-3 p-3">
+              <span className="truncate">{preview.filename}</span>
+              <div className="flex items-center gap-4 shrink-0">
+                <a href={preview.url} download={preview.filename} className="flex items-center gap-2"><Download size={16} /> Tải xuống</a>
+                <button autoFocus onClick={() => setPreview(null)} aria-label="Đóng xem PDF"><X size={20} /></button>
+              </div>
+            </div>
+            <iframe title={`PDF: ${preview.filename}`} src={preview.url} className="w-full flex-1 border-0" />
+          </div>
+        </div>
+      )}
       {/* Delete confirmation modal */}
-      {deleteTarget && (
+      {deleteTargets.length > 0 && (
         <div
           className="fixed inset-0 flex items-center justify-center z-50"
           style={{ background: "rgba(0,0,0,0.4)" }}
-          onClick={() => setDeleteTarget(null)}
+          onClick={() => { if (!deleting) setDeleteTargets([]); }}
         >
           <div
             className="rounded-2xl p-6 w-full max-w-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-documents-title"
             style={{ background: "var(--card)" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -584,6 +672,7 @@ export function Documents() {
               <Trash2 size={22} color="#ef4444" />
             </div>
             <h3
+              id="delete-documents-title"
               style={{
                 fontSize: 16,
                 fontWeight: 600,
@@ -591,7 +680,7 @@ export function Documents() {
                 marginBottom: 8,
               }}
             >
-              Xóa tài liệu?
+              Xóa {deleteTargets.length} tài liệu?
             </h3>
             <p
               style={{
@@ -602,9 +691,16 @@ export function Documents() {
             >
               Hành động này không thể hoàn tác. Tài liệu sẽ bị xóa vĩnh viễn khỏi kho kiến thức.
             </p>
+            <ul className="mb-4 max-h-40 overflow-y-auto text-sm">
+              {docs.filter(d => deleteTargets.includes(d.document_id)).map(d => (
+                <li key={d.document_id} className="break-all">{d.filename}</li>
+              ))}
+            </ul>
+            {deleting && <p role="status" className="mb-4 text-sm">Đang xóa {deleteProgress}/{deleteTargets.length} tài liệu...</p>}
             <div className="flex gap-3">
               <button
-                onClick={() => setDeleteTarget(null)}
+                onClick={() => setDeleteTargets([])}
+                disabled={deleting}
                 className="flex-1 rounded-xl py-2.5 transition-colors"
                 style={{
                   background: "var(--muted)",
@@ -616,11 +712,12 @@ export function Documents() {
                 Hủy
               </button>
               <button
-                onClick={() => handleDelete(deleteTarget)}
+                onClick={handleDelete}
+                disabled={deleting}
                 className="flex-1 rounded-xl py-2.5 transition-colors"
                 style={{ background: "#ef4444", color: "#fff", fontSize: 14, fontWeight: 500 }}
               >
-                Xóa
+                {deleting ? "Đang xóa..." : `Xóa ${deleteTargets.length} tài liệu`}
               </button>
             </div>
           </div>

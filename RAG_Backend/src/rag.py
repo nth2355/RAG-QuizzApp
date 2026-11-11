@@ -132,6 +132,7 @@ def render_prompt(template_name, **context):
 def format_citations(chunks):
     return [
         Citation(
+            document_id=c.metadata.document_id,
             source_index=i,
             source_marker=f"S{i}",
             filename=c.metadata.filename,

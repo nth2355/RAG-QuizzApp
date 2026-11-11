@@ -15,6 +15,7 @@ class RetrievedChunk(BaseModel):
     score: float
     metadata: ChunkMetadata
 class Citation(BaseModel):
+    document_id: str | None = None
     source_index: int
     source_marker: str
     filename: str

@@ -17,8 +17,10 @@ import { useEffect, useRef, useState } from "react";
 import { askQuestion } from "../services/api";
 import { useApp, ChatMessage } from "../context/AppContext";
 import { trackQuestion } from "../services/activityTracker";
+import { CitationLink } from "./CitationLink";
 
 interface Citation {
+  document_id?: string | null;
   source_marker: string;
   filename: string;
   page: number;
@@ -80,6 +82,7 @@ export function Chat() {
         role: "assistant",
         content: response.answer,
         citations: response.citations.map((c) => ({
+          document_id: c.document_id,
           source_marker: c.source_marker,
           filename: c.filename,
           page: c.page,
@@ -313,21 +316,7 @@ export function Chat() {
                 {msg.citations && msg.citations.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {msg.citations.map((c, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 cursor-pointer transition-colors"
-                        style={{
-                          background: "#ede9fe",
-                          border: "1px solid #c4b5fd",
-                          fontSize: 11,
-                        }}
-                      >
-                        <FileText size={10} color="#6366f1" />
-                        <span style={{ color: "#4f46e5" }}>
-                          {c.filename.replace(".pdf", "")} · tr.{c.page}
-                        </span>
-                        <ExternalLink size={9} color="#6366f1" />
-                      </div>
+                      <CitationLink key={i} citation={c} />
                     ))}
                   </div>
                 )}

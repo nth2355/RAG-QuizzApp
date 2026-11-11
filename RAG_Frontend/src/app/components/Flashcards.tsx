@@ -1,3 +1,4 @@
+import { ExportResults } from "./ExportResults";
 import {
   AlertTriangle,
   BookOpen,
@@ -5,7 +6,6 @@ import {
   ChevronDown,
   ChevronLeft,
   CreditCard,
-  Download,
   Eye,
   Loader2,
   RefreshCw,
@@ -24,6 +24,7 @@ import {
 } from "../services/api";
 import { useApp } from "../context/AppContext";
 import { trackFlashcardSession } from "../services/activityTracker";
+import { CitationLink } from "./CitationLink";
 
 type Status = "unseen" | "know" | "review";
 type Stage = "config" | "study" | "results";
@@ -279,6 +280,11 @@ export function Flashcards() {
           </motion.div>
         </div>
 
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {flashcardSet?.citations.filter(c => card.source_markers.includes(c.source_marker)).map(c => (
+            <CitationLink key={c.source_marker} citation={c} />
+          ))}
+        </div>
         {/* Controls */}
         <div className="flex items-center gap-3 mt-6">
           <button onClick={() => { if (current > 0) { setCurrent(current - 1); setFlipped(false); setShowHint(false); } }} disabled={current === 0} className="flex items-center justify-center rounded-xl transition-all" style={{ width: 44, height: 44, background: "var(--card)", border: "1px solid var(--border)", cursor: current === 0 ? "not-allowed" : "pointer" }}>
@@ -369,9 +375,7 @@ export function Flashcards() {
             <RotateCcw size={15} /> Ôn lại
           </button>
         )}
-        <button className="flex items-center justify-center gap-2 rounded-xl px-4 py-3 transition-colors" style={{ background: "var(--muted)", fontSize: 14, color: "var(--muted-foreground)", border: "1px solid var(--border)" }}>
-          <Download size={15} />
-        </button>
+        {flashcardSet && <ExportResults result={{ kind: "flashcards", data: flashcardSet, statuses }} />}
       </div>
     </div>
   );

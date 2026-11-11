@@ -1,6 +1,7 @@
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
 export interface Citation {
+  document_id?: string | null;
   source_index: number;
   source_marker: string;
   filename: string;
@@ -92,6 +93,7 @@ export interface TokenResponse {
 
 interface FetchOptions extends RequestInit {
   timeout?: number;
+  responseType?: "json" | "blob";
 }
 
 export class ApiError extends Error {
@@ -104,8 +106,8 @@ export class ApiError extends Error {
 async function fetchWithTimeout(
   url: string,
   options: FetchOptions = {},
-): Promise<{ json: () => Promise<any> }> {
-  const { timeout = 30000, signal, ...fetchOptions } = options;
+): Promise<{ json: () => Promise<any>; blob: () => Promise<Blob> }> {
+  const { timeout = 30000, signal, responseType = "json", ...fetchOptions } = options;
   const controller = new AbortController();
   let timedOut = false;
   const abort = () => controller.abort(signal?.reason);
@@ -120,6 +122,10 @@ async function fetchWithTimeout(
   }
   try {
     const response = await fetch(url, { ...fetchOptions, headers, signal: controller.signal });
+    if (response.ok && responseType === "blob") {
+      const blob = await response.blob();
+      return { blob: async () => blob, json: async () => null };
+    }
     // Read the complete body before clearing the timer.
     const body = await response.text();
     let data: any = null;
@@ -137,7 +143,7 @@ async function fetchWithTimeout(
         : typeof detail === "string" ? detail : `HTTP ${response.status}: ${response.statusText}`;
       throw new ApiError(message, response.status);
     }
-    return { json: async () => data };
+    return { json: async () => data, blob: async () => { throw new Error("Không phải phản hồi tệp."); } };
   } catch (error) {
     if (timedOut) throw new Error("Máy chủ xử lý quá lâu. Vui lòng kiểm tra trước khi thử lại.");
     throw error;
@@ -174,6 +180,14 @@ export async function listDocuments(): Promise<DocumentInfo[]> {
     method: "GET",
   });
   return response.json();
+}
+
+export async function getDocumentPdf(documentId: string, download = false): Promise<Blob> {
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}/document-ids/${encodeURIComponent(documentId)}/file?download=${download}`,
+    { responseType: "blob", timeout: 120000 },
+  );
+  return response.blob();
 }
 
 export async function uploadDocument(file: File): Promise<UploadResponse> {

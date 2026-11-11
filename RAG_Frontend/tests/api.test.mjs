@@ -89,3 +89,32 @@ test("quiz submits answers and deletion addresses the document ID", async () => 
   assert.deepEqual(JSON.parse(requests[0].body), { answers: [0, null] });
   assert.equal(requests[1].url, "http://api.test/document-ids/42");
 });
+
+test("PDF requests authenticate and preserve binary bytes for view and download", async () => {
+  localStorage.setItem("token", "pdf-token");
+  const bytes = new Uint8Array([37, 80, 68, 70, 45, 0, 255]);
+  const urls = [];
+  globalThis.fetch = async (url, options) => {
+    urls.push(url);
+    assert.equal(options.headers.get("Authorization"), "Bearer pdf-token");
+    return new Response(bytes, { headers: { "Content-Type": "application/pdf" } });
+  };
+  for (const download of [false, true]) {
+    const blob = await api.getDocumentPdf("42", download);
+    assert.deepEqual(new Uint8Array(await blob.arrayBuffer()), bytes);
+    assert.equal(blob.type, "application/pdf");
+  }
+  assert.deepEqual(urls, [
+    "http://api.test/document-ids/42/file?download=false",
+    "http://api.test/document-ids/42/file?download=true",
+  ]);
+});
+
+test("PDF failures retain API errors and expired-auth handling", async () => {
+  globalThis.fetch = async () => new Response('{"detail":"Missing PDF"}', { status: 404 });
+  await assert.rejects(api.getDocumentPdf("42"), { status: 404, message: "Missing PDF" });
+  localStorage.setItem("token", "expired");
+  globalThis.fetch = async () => new Response('{"detail":"Expired"}', { status: 401 });
+  await assert.rejects(api.getDocumentPdf("42"), { status: 401 });
+  assert.equal(localStorage.getItem("token"), null);
+});

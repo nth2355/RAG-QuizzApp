@@ -1,3 +1,4 @@
+import { ExportResults } from "./ExportResults";
 import {
   AlertTriangle,
   AlignLeft,
@@ -5,7 +6,6 @@ import {
   CheckCheck,
   ChevronDown,
   Copy,
-  Download,
   FileText,
   List,
   Loader2,
@@ -19,6 +19,7 @@ import {
 } from "../services/api";
 import { useApp } from "../context/AppContext";
 import { trackSummarize } from "../services/activityTracker";
+import { CitationLink } from "./CitationLink";
 
 const LENGTHS = [
   { value: "short", label: "Ngắn gọn", desc: "~100 từ" },
@@ -379,17 +380,7 @@ export function Summarize() {
                 )}
                 {copied ? "Đã sao chép" : "Sao chép"}
               </button>
-              <button
-                className="flex items-center gap-2 rounded-xl px-3 py-2 transition-colors"
-                style={{
-                  background: "var(--primary)",
-                  color: "#fff",
-                  fontSize: 13,
-                  fontWeight: 500,
-                }}
-              >
-                <Download size={13} /> Tải xuống
-              </button>
+              {summary && <ExportResults result={{ kind: "summary", data: summary }} />}
             </div>
 
             {/* Summary text */}
@@ -529,25 +520,7 @@ export function Summarize() {
                       }}
                     >
                       <FileText size={14} color="#f59e0b" />
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 500,
-                            color: "var(--foreground)",
-                          }}
-                        >
-                          {c.filename}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: "var(--muted-foreground)",
-                          }}
-                        >
-                          Trang {c.page}
-                        </div>
-                      </div>
+                      <CitationLink citation={c} />
                     </div>
                   ))}
                 </div>
